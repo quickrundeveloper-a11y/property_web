@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write access to chat_messages collection
+    match /chat_messages/{document} {
+      allow read, write: if true;
+    }
+    
+    // Allow read/write access to messages collection
+    match /messages/{document} {
+      allow read, write: if true;
+    }
+    
+    // Allow read/write access to properties collection
+    match /properties/{document} {
+      allow read, write: if true;
+    }
+    
+    // Allow read/write access to favorites collection
+    match /favorites/{document} {
+      allow read, write: if true;
+    }
+    
+    // Allow read/write access to sms collection
+    match /sms/{document} {
+      allow read, write: if true;
+    }
+  }
+}
