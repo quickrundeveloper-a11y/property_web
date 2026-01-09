@@ -5,17 +5,30 @@ import WhatsAppChatInterface from "./whatsapp-chat-interface";
 
 export default function FloatingSMSWidget() {
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [initialContact, setInitialContact] = useState<{ id: string; name: string; phone: string; propertyTitle?: string } | undefined>(undefined);
+  const [initialContact, setInitialContact] = useState<
+    | {
+        propertyId: string;
+        propertyTitle?: string;
+        sellerId: string;
+        sellerName?: string;
+      }
+    | undefined
+  >(undefined);
   const [initialMessage, setInitialMessage] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail as {
-        contact: { id: string; name: string; phone: string; propertyTitle?: string };
-        message?: string;
-      };
-      if (detail && detail.contact) {
-        setInitialContact(detail.contact);
+      const detail = (e as CustomEvent).detail as any;
+      if (!detail || !detail.contact) return;
+
+      const contact = detail.contact as any;
+      if (contact.propertyId && contact.sellerId) {
+        setInitialContact({
+          propertyId: contact.propertyId,
+          propertyTitle: contact.propertyTitle,
+          sellerId: contact.sellerId,
+          sellerName: contact.sellerName,
+        });
         setInitialMessage(detail.message);
         setIsChatOpen(true);
       }

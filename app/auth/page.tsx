@@ -11,6 +11,7 @@ import {
   signInWithPopup,
   GoogleAuthProvider
 } from "firebase/auth";
+import { updateProfile } from "firebase/auth";
 import {
   doc,
   getDoc,
@@ -37,6 +38,9 @@ function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
+  const [captureNameOpen, setCaptureNameOpen] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [newUserUid, setNewUserUid] = useState<string | null>(null);
   
   // Initialize state with default values
   const [authState, setAuthState] = useState<AuthState>({
@@ -180,25 +184,24 @@ function AuthPageContent() {
       const userCredential = await signInWithPopup(auth, provider);
       const user = userCredential.user;
 
-      // Ensure Firestore document exists
-      const userRef = doc(db, "users", user.email!.toLowerCase());
+      const userRef = doc(db, "users", user.uid);
       const snap = await getDoc(userRef);
-
       if (!snap.exists()) {
-        // Create user document
         await setDoc(userRef, {
-          uid: user.uid,
-          email: user.email!.toLowerCase(),
-          displayName: user.displayName,
-          photoURL: user.photoURL,
+          email: user.email ? user.email.toLowerCase() : null,
+          displayName: user.displayName || null,
+          photoURL: user.photoURL || null,
           provider: "google",
           createdAt: serverTimestamp(),
-        });
-      } else {
-        // Update last login time
-        await setDoc(userRef, {
           lastLoginAt: serverTimestamp(),
-        }, { merge: true });
+        });
+        setNewUserUid(user.uid);
+        setNameInput(user.displayName || "");
+        setCaptureNameOpen(true);
+        setAuthState(prev => ({ ...prev, loading: false }));
+        return;
+      } else {
+        await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
       }
 
       // Success callback and redirect
@@ -252,33 +255,24 @@ function AuthPageContent() {
 
       const user = userCredential.user;
 
-      // Ensure Firestore document exists
-      const userRef = doc(db, "users", emailKey);
+      const userRef = doc(db, "users", user.uid);
       const snap = await getDoc(userRef);
-
       if (!snap.exists()) {
-        // Create user document with appropriate metadata
-        const userData: Record<string, unknown> = {
-          uid: user.uid,
+        await setDoc(userRef, {
           email: emailKey,
           provider: "password",
           createdAt: serverTimestamp(),
-        };
-
-        // Add lastLoginAt for existing users logging in
-        if (authState.mode === 'login') {
-          userData.lastLoginAt = serverTimestamp();
-        }
-
-        await setDoc(userRef, userData);
-      } else if (authState.mode === 'login') {
-        // Update last login time for existing users
-        await setDoc(userRef, {
           lastLoginAt: serverTimestamp(),
-        }, { merge: true });
+        });
+        setNewUserUid(user.uid);
+        setNameInput("");
+        setCaptureNameOpen(true);
+        setAuthState(prev => ({ ...prev, loading: false }));
+        return;
+      } else {
+        await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
       }
 
-      // Success callback and redirect
       router.push("/home");
 
     } catch (error: unknown) {
@@ -495,6 +489,47 @@ function AuthPageContent() {
             </>
           )}
         </p>
+
+        {/* Name Capture Modal */}
+        {captureNameOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2 text-center">Add your name</h3>
+              <p className="text-sm text-gray-800 mb-4 text-center">This helps personalize your experience</p>
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="Your name"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
+              />
+              <div className="mt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const name = nameInput.trim();
+                    const uid = newUserUid;
+                    if (uid && name) {
+                      if (auth.currentUser) {
+                        try { await updateProfile(auth.currentUser, { displayName: name }); } catch {}
+                      }
+                      await setDoc(doc(db, "users", uid), { displayName: name }, { merge: true });
+                    }
+                    if (!name) return;
+                    setCaptureNameOpen(false);
+                    setNameInput("");
+                    setNewUserUid(null);
+                    router.push("/home");
+                  }}
+                  disabled={!nameInput.trim()}
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

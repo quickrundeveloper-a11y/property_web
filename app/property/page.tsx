@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { collection, query, orderBy, getDocs, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -17,7 +17,7 @@ interface Property {
   type: string;
 }
 
-export default function PropertySearch() {
+function PropertySearchContent() {
   const searchParams = useSearchParams();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -238,5 +238,17 @@ export default function PropertySearch() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PropertySearch() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <PropertySearchContent />
+    </Suspense>
   );
 }

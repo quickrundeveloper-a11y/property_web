@@ -1,16 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { db, storage, auth } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { signInAnonymously } from "firebase/auth";
+
+type MapsLike = {
+  addListener: (event: string, cb: (e?: unknown) => void) => void;
+  panTo: (pos: { lat: number; lng: number }) => void;
+  setZoom: (z: number) => void;
+};
+
+type MarkerLike = {
+  setPosition?: (pos: { lat: number; lng: number }) => void;
+  position?: { lat: number; lng: number };
+  addListener?: (event: string, cb: (e?: unknown) => void) => void;
+};
+
+type GeocoderLike = {
+  geocode: (opts: { location: { lat: number; lng: number } }) => Promise<{ results?: Array<{ formatted_address?: string }> }>;
+};
+
+type AutocompleteLike = {
+  addListener: (event: string, cb: () => void) => void;
+  getPlace: () => { geometry?: { location?: { lat: () => number; lng: () => number } }; formatted_address?: string };
+};
 
 export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { defaultType?: "rent" | "sell", onSuccess?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     location: "",
+    locationLat: null as number | null,
+    locationLng: null as number | null,
     price: "",
     bedrooms: "",
     bathrooms: "",
@@ -22,10 +45,51 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
     phone: "",
     email: "",
     type: defaultType,
-    propertyCategory: "apartment"
+    propertyCategory: "apartment",
+    rentFrequency: "per_month" as "per_month" | "per_year"
   });
   const [images, setImages] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
+  const mapRef = useRef<MapsLike | null>(null);
+  const markerRef = useRef<MarkerLike | null>(null);
+  const geocoderRef = useRef<GeocoderLike | null>(null);
+  const [mapsReady, setMapsReady] = useState(false);
+
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      if (file.size < 1024 * 1024) {
+        resolve(file);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxWidth = 1600;
+        const scale = Math.min(1, maxWidth / img.width);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const compressed = new File([blob], file.name.replace(/\.(\w+)$/, ".jpg"), { type: "image/jpeg" });
+            resolve(compressed);
+          } else {
+            resolve(file);
+          }
+        }, "image/jpeg", 0.75);
+      };
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  };
 
   useEffect(() => {
     const urls = images.map(file => URL.createObjectURL(file));
@@ -34,6 +98,135 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       urls.forEach(url => URL.revokeObjectURL(url));
     };
   }, [images]);
+  
+  useEffect(() => {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) return;
+
+    // Check if script is already present
+    const existingScript = document.querySelector(`script[src^="https://maps.googleapis.com/maps/api/js"]`);
+
+    if (typeof window !== "undefined" && !(window as unknown as { google?: unknown }).google && !existingScript) {
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.async = true;
+      script.onload = () => {
+        setMapsReady(true);
+      };
+      document.body.appendChild(script);
+    } else {
+      if ((window as unknown as { google?: unknown }).google) {
+        setMapsReady(true);
+      } else if (existingScript) {
+        // If script exists but google object not yet available, wait for load
+        existingScript.addEventListener('load', () => setMapsReady(true));
+      }
+    }
+  }, []);
+  
+  useEffect(() => {
+    if (!mapsReady || !mapContainerRef.current) return;
+    // Initialize map
+    const center = {
+      lat: formData.locationLat ?? 19.0760,
+      lng: formData.locationLng ?? 72.8777
+    };
+    const googleObj = (window as unknown as {
+      google?: {
+        maps: {
+          Map: new (el: HTMLElement, opts: unknown) => MapsLike;
+          Marker: new (opts: unknown) => MarkerLike;
+          Geocoder: new () => GeocoderLike;
+          places: { Autocomplete: new (el: HTMLInputElement, opts: unknown) => AutocompleteLike };
+          marker?: { AdvancedMarkerElement: new (opts: unknown) => MarkerLike };
+        };
+      };
+    }).google!;
+    mapRef.current = new googleObj.maps.Map(mapContainerRef.current!, {
+      center,
+      zoom: 12,
+      disableDefaultUI: true
+    });
+    geocoderRef.current = new googleObj.maps.Geocoder();
+    
+    // Create standard draggable marker (avoids Advanced Marker mapId requirement)
+    const marker = new googleObj.maps.Marker({
+      map: mapRef.current,
+      position: center,
+      draggable: true
+    });
+    markerRef.current = marker;
+    
+    // Map click to set marker and reverse geocode
+    mapRef.current.addListener("click", async (e: unknown) => {
+      const evt = e as { latLng?: { lat: () => number; lng: () => number } };
+      if (!evt.latLng) return;
+      const lat = evt.latLng.lat();
+      const lng = evt.latLng.lng();
+      if (markerRef.current?.setPosition) {
+        markerRef.current.setPosition({ lat, lng });
+      } else if (markerRef.current) {
+        markerRef.current.position = { lat, lng };
+      }
+      mapRef.current?.panTo({ lat, lng });
+      setFormData(prev => ({ ...prev, locationLat: lat, locationLng: lng }));
+      try {
+        const geocode = await geocoderRef.current!.geocode({ location: { lat, lng } });
+        const address = geocode.results?.[0]?.formatted_address;
+        if (address) {
+          setFormData(prev => ({ ...prev, location: address }));
+          if (autocompleteInputRef.current) {
+            autocompleteInputRef.current.value = address;
+          }
+        }
+      } catch {
+        // ignore geocoder errors
+      }
+    });
+    
+    // Marker drag end to update address and lat/lng
+    markerRef.current.addListener?.("dragend", async (e: unknown) => {
+      const evt = e as { latLng?: { lat: () => number; lng: () => number } };
+      if (!evt.latLng) return;
+      const lat = evt.latLng.lat();
+      const lng = evt.latLng.lng();
+      setFormData(prev => ({ ...prev, locationLat: lat, locationLng: lng }));
+      try {
+        const geocode = await geocoderRef.current!.geocode({ location: { lat, lng } });
+        const address = geocode.results?.[0]?.formatted_address;
+        if (address) {
+          setFormData(prev => ({ ...prev, location: address }));
+          if (autocompleteInputRef.current) {
+            autocompleteInputRef.current.value = address;
+          }
+        }
+      } catch {
+        // ignore geocoder errors
+      }
+    });
+    
+    // Autocomplete
+    if (autocompleteInputRef.current) {
+      const autocomplete = new googleObj.maps.places.Autocomplete(autocompleteInputRef.current, {
+        fields: ["geometry", "formatted_address"]
+      });
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        const loc = place.geometry?.location;
+        const address = place.formatted_address || "";
+        if (loc) {
+          const lat = loc.lat();
+          const lng = loc.lng();
+          mapRef.current?.panTo({ lat, lng });
+          mapRef.current?.setZoom(14);
+          if (markerRef.current?.setPosition) markerRef.current.setPosition({ lat, lng });
+          setFormData(prev => ({ ...prev, location: address, locationLat: lat, locationLng: lng }));
+        } else {
+          setFormData(prev => ({ ...prev, location: address }));
+        }
+      });
+    }
+  }, [mapsReady]);
   
   const handleFilesAdd = (files: File[]) => {
     setImages(prev => {
@@ -54,83 +247,91 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
     try {
       // First, ensure user is authenticated
       try {
-        await signInAnonymously(auth);
-        console.log("User authenticated successfully");
+        if (!auth.currentUser) {
+          await signInAnonymously(auth);
+        }
       } catch (authError) {
         console.log("Authentication not required or already authenticated");
       }
+      const sellerId = auth.currentUser?.uid || null;
 
-      const uploadWithTimeout = async (file: File, ms = 30000) => {
+      const uploadImage = async (file: File) => {
         const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name}`;
         const storageRef = ref(storage, `properties/${unique}`);
-        
-        const uploadPromise = (async () => {
+        const toUpload = await compressImage(file);
+        return new Promise<string | null>(async (resolve) => {
           try {
-            console.log("Attempting to upload file:", file.name);
-            const snapshot = await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(snapshot.ref);
-            console.log("Upload successful:", url);
-            return url;
-          } catch (error) {
-            console.error("Upload failed:", error);
-            // Try with explicit authentication
+            const task = uploadBytesResumable(storageRef, toUpload);
+            const timeout = setTimeout(() => {
+              try { task.cancel(); } catch {}
+            }, 15000);
+            task.on("state_changed",
+              (snapshot) => {
+                const pct = Math.round((snapshot.bytesTransferred / Math.max(snapshot.totalBytes, 1)) * 100);
+                setUploadProgress(pct);
+              },
+              async (_error: unknown) => {
+                try {
+                  await signInAnonymously(auth);
+                  const snapshot2 = await uploadBytes(storageRef, toUpload);
+                  const url2 = await getDownloadURL(snapshot2.ref);
+                  clearTimeout(timeout);
+                  resolve(url2);
+                } catch {
+                  clearTimeout(timeout);
+                  resolve(null);
+                }
+              },
+              async () => {
+                const url = await getDownloadURL(task.snapshot.ref);
+                clearTimeout(timeout);
+                resolve(url);
+              }
+            );
+          } catch {
             try {
-              console.log("Retrying with authentication...");
               await signInAnonymously(auth);
-              const snapshot2 = await uploadBytes(storageRef, file);
-              const url2 = await getDownloadURL(snapshot2.ref);
-              console.log("Retry upload successful:", url2);
-              return url2;
-            } catch (retryError) {
-              console.error("Retry upload also failed:", retryError);
-              return null;
+              const snapshot = await uploadBytes(storageRef, toUpload);
+              const url = await getDownloadURL(snapshot.ref);
+              resolve(url);
+            } catch {
+              resolve(null);
             }
           }
-        })();
-        
-        const timeoutPromise = new Promise<string | null>((resolve) => {
-          setTimeout(() => {
-            console.log("Upload timeout reached");
-            resolve(null);
-          }, ms);
         });
-        
-        return Promise.race([uploadPromise, timeoutPromise]);
       };
 
-      const settled = await Promise.allSettled(
+      let completed = 0;
+      const results = await Promise.all(
         images.map(async (image) => {
-          try {
-            const url = await uploadWithTimeout(image);
-            return url;
-          } catch (error) {
-            console.error("Error uploading image:", error);
-            return null;
-          }
+          const url = await uploadImage(image);
+          completed += 1;
+          setUploadProgress(Math.round((completed / images.length) * 100));
+          return url;
         })
       );
-      
-      const imageUrls = settled.map((res) => (res.status === "fulfilled" ? res.value : null));
+      const imageUrls = results;
       const validUrls = imageUrls.filter((u): u is string => !!u);
-
-      console.log(`Successfully uploaded ${validUrls.length} out of ${images.length} images`);
 
       // Allow property creation even if no images uploaded (use placeholder)
       if (validUrls.length === 0) {
-        console.log("No images uploaded, using placeholder image");
         validUrls.push("https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80");
       }
 
       // Add to Firestore
       await addDoc(collection(db, "properties"), {
         ...formData,
+        sellerId,
         price: Number(formData.price),
         bedrooms: Number(formData.bedrooms),
         bathrooms: Number(formData.bathrooms),
         images: validUrls,
         image: validUrls[0],
         createdAt: serverTimestamp(),
-        status: "active"
+        status: "active",
+        locationLat: formData.locationLat ?? null,
+        locationLng: formData.locationLng ?? null,
+        rentFrequency: formData.type === "rent" ? formData.rentFrequency : null
       });
 
       alert("Property listed successfully!");
@@ -140,6 +341,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       setFormData({
         title: "",
         location: "",
+        locationLat: null,
+        locationLng: null,
         price: "",
         bedrooms: "",
         bathrooms: "",
@@ -151,7 +354,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         phone: "",
         email: "",
         type: defaultType,
-        propertyCategory: "apartment"
+        propertyCategory: "apartment",
+        rentFrequency: "per_month"
       });
       setImages([]);
 
@@ -188,9 +392,28 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
           >
             <option value="apartment">Apartment</option>
             <option value="house">House</option>
+            <option value="villa">Villa</option>
+            <option value="land">Land</option>
           </select>
         </div>
       </div>
+      
+      {formData.type === "rent" && (
+        <div className="mb-4">
+          <label className="block text-sm mb-1 text-white/80">Rent Time</label>
+          <select
+            className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 text-white [&>option]:text-black"
+            value={formData.rentFrequency}
+            onChange={e => setFormData({ ...formData, rentFrequency: e.target.value as "per_month" | "per_year" })}
+          >
+            <option value="per_month">Per Month</option>
+            <option value="per_year">Per Year</option>
+          </select>
+          {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+            <p className="text-xs text-white/60 mt-2">To enable map search, set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in environment.</p>
+          )}
+        </div>
+      )}
 
       <div className="mb-4">
         <label className="block text-sm mb-1 text-white/80">Property Title</label>
@@ -205,16 +428,31 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div>
+        <div className="md:col-span-1">
           <label className="block text-sm mb-1 text-white/80">Location</label>
-          <input
-            type="text"
-            required
-            className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
-            value={formData.location}
-            onChange={e => setFormData({...formData, location: e.target.value})}
-            placeholder="e.g. Mumbai, India"
-          />
+          {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
+            <>
+              <input
+                ref={autocompleteInputRef}
+                type="text"
+                required
+                className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+                defaultValue={formData.location}
+                onChange={e => setFormData({ ...formData, location: e.target.value })}
+                placeholder="Search location"
+              />
+              <div ref={mapContainerRef} className="mt-3 w-full h-64 rounded-lg overflow-hidden border border-white/30"></div>
+            </>
+          ) : (
+            <input
+              type="text"
+              required
+              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+              value={formData.location}
+              onChange={e => setFormData({...formData, location: e.target.value})}
+              placeholder="e.g. Mumbai, India"
+            />
+          )}
         </div>
         <div>
           <label className="block text-sm mb-1 text-white/80">Price</label>
@@ -466,6 +704,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       >
         {loading ? "Listing Property..." : "List Property Now"}
       </button>
+      {loading && images.length > 0 && (
+        <p className="mt-2 text-center text-white/70 text-sm">Uploading images… {uploadProgress}%</p>
+      )}
     </form>
   );
 }

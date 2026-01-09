@@ -14,7 +14,7 @@ interface Property {
   beds: number;
   baths: number;
   size: string;
-  amenities: string[];
+  amenities?: string[];
   features: string[];
   phone: string;
   image: string;
@@ -27,6 +27,8 @@ interface Property {
   status?: string;
   furnished?: string;
   ageOfConstruction?: string;
+  sellerId?: string | null;
+  contactName?: string;
 }
 
 export default function PropertyDetails() {
@@ -43,7 +45,6 @@ export default function PropertyDetails() {
       try {
         // Check if it's a default property
         if (typeof params.id === 'string' && params.id.startsWith('default-')) {
-          const defaultId = parseInt(params.id.replace('default-', ''));
           const defaultProperties = [
             {
               id: "default-1",
@@ -53,7 +54,6 @@ export default function PropertyDetails() {
               beds: 4,
               baths: 3,
               size: "2500",
-              amenities: ["Swimming Pool", "Gym", "Parking", "Security", "Garden", "Clubhouse"],
               features: ["Modular Kitchen", "Marble Flooring", "Balcony", "Parking Space"],
               phone: "+91-9876543210",
               image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6",
@@ -68,7 +68,8 @@ export default function PropertyDetails() {
               floor: "Ground Floor",
               status: "Ready to Move",
               furnished: "Semi-Furnished",
-              ageOfConstruction: "New Construction"
+              ageOfConstruction: "New Construction",
+              sellerId: "default-seller-1"
             },
             {
               id: "default-2",
@@ -78,7 +79,6 @@ export default function PropertyDetails() {
               beds: 3,
               baths: 3,
               size: "1800",
-              amenities: ["Swimming Pool", "Gym", "Security", "Parking", "Garden", "Clubhouse"],
               features: ["Modular Kitchen", "Wooden Flooring", "Balcony", "Parking Space"],
               phone: "08920393457",
               image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be",
@@ -103,7 +103,6 @@ export default function PropertyDetails() {
               beds: 1,
               baths: 1,
               size: "1000",
-              amenities: ["Parking", "Security", "Garden", "Gym", "Swimming Pool", "Clubhouse"],
               features: ["Modern Kitchen", "Tile Flooring", "Balcony", "Parking Space"],
               phone: "08920393457",
               image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2",
@@ -132,7 +131,12 @@ export default function PropertyDetails() {
           const docSnap = await getDoc(docRef);
 
           if (docSnap.exists()) {
-            const propertyData = { id: docSnap.id, ...docSnap.data() } as Property;
+            const data = docSnap.data();
+            const propertyData = { 
+              id: docSnap.id, 
+              ...data,
+              size: data.area || data.size || "0"
+            } as Property;
             setProperty(propertyData);
           } else {
             console.log("No such property!");
@@ -335,18 +339,7 @@ export default function PropertyDetails() {
               </div>
             </div>
 
-            {/* Amenities */}
-            <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Amenities</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {(property.amenities || ["Swimming Pool", "Gym", "Parking", "Security", "Garden", "Clubhouse"]).map((amenity, index) => (
-                  <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="w-2 h-2 bg-slate-700 rounded-full"></div>
-                    <span className="text-gray-700">{amenity}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+
 
             {/* Features */}
             <div className="bg-white rounded-xl shadow-lg p-6">
@@ -384,13 +377,19 @@ export default function PropertyDetails() {
 
                 <button 
                   onClick={() => {
+                    const sellerId = property.sellerId || null;
+                    if (!sellerId) {
+                      alert("This property owner cannot be contacted at the moment (Missing owner details).");
+                      return;
+                    }
                     const event = new CustomEvent('open-chat', {
                       detail: {
                         contact: {
-                          id: property.id,
-                          name: "Property Owner",
+                          propertyId: property.id,
+                          propertyTitle: property.title,
+                          sellerId,
+                          sellerName: property.contactName || "Property Owner",
                           phone: property.phone || "+91-9876543210",
-                          propertyTitle: property.title
                         },
                         message: `Hi, I'm interested in ${property.title}`
                       }

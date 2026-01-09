@@ -24,15 +24,22 @@ export default function Home() {
     const propertyLocation = property.location || property.address || "Location";
     const price = formatPrice(property);
     const phone = property.phone || property.contact || "+91-9876543210";
-    const contactId = phone || property.id || "contact";
+    const propertyId = property.id;
+    const sellerId = property.sellerId || property.ownerId || property.userId || null;
+    if (!propertyId || !sellerId) {
+      console.warn("Cannot open chat: Missing seller ID for property", property.id);
+      alert("This property owner cannot be contacted at the moment (Missing owner details).");
+      return;
+    }
     const message = `Hi! I'm interested in ${propertyName} located at ${propertyLocation} priced at ₹${price.toLocaleString()}/month. Could you please provide more details about this property?`;
     const event = new CustomEvent("open-chat", {
       detail: {
         contact: {
-          id: contactId,
-          name: "Property Owner",
-          phone: phone,
-          propertyTitle: propertyName
+          propertyId,
+          propertyTitle: propertyName,
+          sellerId,
+          sellerName: property.contactName || property.sellerName || "Property Owner",
+          phone,
         },
         message
       }
@@ -785,7 +792,8 @@ export default function Home() {
                             title: 'Amarpali Zodiac',
                             location: 'sector-122',
                             price: 3000000,
-                            phone: '+91-9876543210'
+                            phone: '+91-9876543210',
+                            sellerId: 'sample-seller'
                           };
                           handleSMSClick(sampleProperty);
                         }}

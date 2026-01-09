@@ -1,23 +1,47 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+  
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isManagePropertyOpen, setIsManagePropertyOpen] = useState(false);
   const [isResourcesOpen, setIsResourcesOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { user, logout, loading } = useAuth();
+  const [profileName, setProfileName] = useState<string | null>(null);
 
   const handleLogout = async () => {
     await logout();
     setIsUserMenuOpen(false);
   };
 
-  const getUserInitial = (email: string) => {
-    return email.charAt(0).toUpperCase();
+  useEffect(() => {
+    const loadName = async () => {
+      if (!user?.uid) return;
+      if (user.displayName && user.displayName.trim()) {
+        setProfileName(user.displayName);
+        return;
+      }
+      try {
+        const ref = doc(db, 'users', user.uid);
+        const snap = await getDoc(ref);
+        const dn = snap.exists() ? (snap.data()?.displayName as string | undefined) : undefined;
+        if (dn && dn.trim()) setProfileName(dn);
+      } catch {}
+    };
+    loadName();
+  }, [user?.uid, user?.displayName]);
+
+  const getUserInitial = () => {
+    const name = (profileName || user?.displayName || "").trim();
+    if (name) return name.charAt(0).toUpperCase();
+    const email = user?.email || "";
+    const match = email.match(/[A-Za-z]/);
+    return match ? match[0].toUpperCase() : "U";
   };
 
   return (
@@ -110,7 +134,7 @@ export default function Header() {
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className="w-10 h-10 bg-white text-blue-600 rounded-full flex items-center justify-center font-semibold hover:bg-blue-50 transition-colors"
                 >
-                  {getUserInitial(user.email || 'U')}
+                  {getUserInitial()}
                 </button>
                 {isUserMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50">
@@ -252,7 +276,7 @@ export default function Header() {
                   <>
                     <div className="flex items-center space-x-3 px-3 py-2 bg-blue-600 rounded-md">
                       <div className="w-8 h-8 bg-white text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm">
-                        {getUserInitial(user.email || 'U')}
+                        {getUserInitial()}
                       </div>
                       <div>
                         <p className="text-white text-sm font-medium">Signed in as</p>

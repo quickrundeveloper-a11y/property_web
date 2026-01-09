@@ -1,294 +1,326 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs } from "firebase/firestore";
+import { useAuth } from "@/lib/auth-context";
+import { auth, db } from "@/lib/firebase";
+import { signInAnonymously } from "firebase/auth";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  increment,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  serverTimestamp,
+  startAfter,
+  updateDoc,
+  where,
+  writeBatch,
+} from "firebase/firestore";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+interface ChatThread {
+  id: string;
+  propertyId: string;
+  buyerId: string;
+  sellerId: string;
+  participants: string[];
+  lastMessage?: string;
+  lastMessageTime?: any;
+  unreadCountByBuyer?: number;
+  unreadCountBySeller?: number;
+  buyerName?: string | null;
+  sellerName?: string | null;
+  propertyTitle?: string | null;
+}
 
 interface ChatMessage {
   id: string;
+  text: string;
   senderId: string;
   receiverId: string;
-  message: string;
   timestamp: any;
-  type: 'sent' | 'received';
-  propertyId?: string;
-  propertyTitle?: string;
+  seen: boolean;
 }
 
-interface ChatContact {
-  id: string;
-  name: string;
-  phone: string;
-  lastMessage: string;
-  lastMessageTime: any;
-  unreadCount: number;
-  avatar?: string;
-  isOnline?: boolean;
+type InitialChat = {
+  propertyId: string;
   propertyTitle?: string;
-}
+  sellerId: string;
+  sellerName?: string;
+  buyerId?: string;
+  buyerName?: string;
+};
+
+const formatTime = (timestamp: any) => {
+  if (!timestamp) return "";
+  try {
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+
+    if (diff < 86400000) {
+      return date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    }
+    if (diff < 604800000) {
+      return date.toLocaleDateString("en-US", { weekday: "short" });
+    }
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  } catch {
+    return "";
+  }
+};
 
 export default function WhatsAppChatInterface({
   isOpen,
   onClose,
   initialContact,
-  initialMessage
+  initialMessage,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  initialContact?: { id: string; name: string; phone: string; propertyTitle?: string };
+  initialContact?: InitialChat;
   initialMessage?: string;
 }) {
-  const [contacts, setContacts] = useState<ChatContact[]>([]);
-  const [selectedContact, setSelectedContact] = useState<ChatContact | null>(null);
+  const { user } = useAuth();
+  const currentUserId = user?.uid || auth.currentUser?.uid || null;
+  const currentUserName = useMemo(() => {
+    const name = (user?.displayName || "").trim();
+    if (name) return name;
+    const email = (user?.email || "").trim();
+    if (!email) return null;
+    return email.split("@")[0] || null;
+  }, [user?.displayName, user?.email]);
+
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [selectedThread, setSelectedThread] = useState<ChatThread | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [hasMoreOlder, setHasMoreOlder] = useState(true);
+  const [oldestCursor, setOldestCursor] = useState<any | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const suppressAutoScrollRef = useRef(false);
 
-  // Get user ID
-  const getUserId = () => {
-    let userId = localStorage.getItem('userId');
-    if (!userId) {
-      userId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-      localStorage.setItem('userId', userId);
-    }
-    return userId;
+  const getChatId = (propertyId: string, buyerId: string, sellerId: string) => {
+    return `${propertyId}_${buyerId}_${sellerId}`;
   };
 
-  // Load chat contacts
-  const loadContacts = async () => {
-    try {
-      const userId = getUserId();
-      
-      // Use a simpler query to get all messages, then filter client-side
-      const messagesQuery = query(
-        collection(db, "chat_messages"),
-        orderBy("timestamp", "desc")
-      );
-      
-      const snapshot = await getDocs(messagesQuery);
-      const allMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ChatMessage[];
+  const getOtherName = (t: ChatThread) => {
+    if (!currentUserId) return "User";
+    const isBuyer = t.buyerId === currentUserId;
+    const other = isBuyer ? t.sellerName : t.buyerName;
+    return (other || "User").toString();
+  };
 
-      // Filter messages where user is involved
-      const userMessages = allMessages.filter(message => 
-        message.senderId === userId || message.receiverId === userId
-      );
+  const getUnreadCount = (t: ChatThread) => {
+    if (!currentUserId) return 0;
+    if (t.buyerId === currentUserId) return t.unreadCountByBuyer || 0;
+    return t.unreadCountBySeller || 0;
+  };
 
-      // Group messages by contact
-      const contactsMap = new Map<string, ChatContact>();
+  const ensureSignedIn = async () => {
+    if (auth.currentUser) return;
+    await signInAnonymously(auth);
+  };
 
-      userMessages.forEach(message => {
-        const contactId = message.senderId === userId ? message.receiverId : message.senderId;
-        const contactPhone = contactId.includes('admin') ? '+91-9876543210' : contactId;
-        const contactName = contactId.includes('admin') ? 'Property Support' : `Customer ${contactPhone.slice(-4)}`;
-
-        if (!contactsMap.has(contactId)) {
-          contactsMap.set(contactId, {
-            id: contactId,
-            name: contactName,
-            phone: contactPhone,
-            lastMessage: message.message,
-            lastMessageTime: message.timestamp,
-            unreadCount: 0,
-            isOnline: Math.random() > 0.5, // Random online status
-            propertyTitle: message.propertyTitle
-          });
-        } else {
-          const contact = contactsMap.get(contactId)!;
-          if (message.timestamp > contact.lastMessageTime) {
-            contact.lastMessage = message.message;
-            contact.lastMessageTime = message.timestamp;
-          }
-        }
+  const createChatIfMissing = async (args: {
+    propertyId: string;
+    propertyTitle?: string;
+    buyerId: string;
+    buyerName?: string | null;
+    sellerId: string;
+    sellerName?: string | null;
+  }) => {
+    const chatId = getChatId(args.propertyId, args.buyerId, args.sellerId);
+    const chatRef = doc(db, "chats", chatId);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(chatRef);
+      if (snap.exists()) return;
+      tx.set(chatRef, {
+        propertyId: args.propertyId,
+        propertyTitle: args.propertyTitle || null,
+        buyerId: args.buyerId,
+        buyerName: args.buyerName || null,
+        sellerId: args.sellerId,
+        sellerName: args.sellerName || null,
+        participants: [args.buyerId, args.sellerId],
+        lastMessage: "",
+        lastMessageTime: serverTimestamp(),
+        unreadCountByBuyer: 0,
+        unreadCountBySeller: 0,
       });
-
-      // Add some sample contacts if no messages exist
-      if (contactsMap.size === 0) {
-        const sampleContacts: ChatContact[] = [
-          {
-            id: 'admin-support',
-            name: 'Property Support',
-            phone: '+91-9876543210',
-            lastMessage: 'Hello! How can I help you with properties?',
-            lastMessageTime: new Date(),
-            unreadCount: 1,
-            isOnline: true,
-            propertyTitle: 'General Support'
-          },
-          {
-            id: 'agent-1',
-            name: 'Raj Kumar (Agent)',
-            phone: '+91-9876543211',
-            lastMessage: 'The property you inquired about is available',
-            lastMessageTime: new Date(Date.now() - 3600000),
-            unreadCount: 0,
-            isOnline: false,
-            propertyTitle: 'Amarpali Zodiac'
-          },
-          {
-            id: 'agent-2', 
-            name: 'Priya Sharma (Agent)',
-            phone: '+91-9876543212',
-            lastMessage: 'Would you like to schedule a visit?',
-            lastMessageTime: new Date(Date.now() - 7200000),
-            unreadCount: 2,
-            isOnline: true,
-            propertyTitle: 'DLF Cyber City'
-          }
-        ];
-        
-        sampleContacts.forEach(contact => contactsMap.set(contact.id, contact));
-      }
-
-      const contactsList = Array.from(contactsMap.values()).sort((a, b) => 
-        new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
-      );
-
-      setContacts(contactsList);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error loading contacts:", error);
-      setLoading(false);
-    }
+    });
+    return chatId;
   };
 
-  // Load messages for selected contact
-  const loadMessages = (contactId: string) => {
-    const userId = getUserId();
-    
-    // Use a simpler query to avoid index requirements
-    const messagesQuery = query(
-      collection(db, "chat_messages"),
-      orderBy("timestamp", "asc")
-    );
+  const markThreadSeen = async (thread: ChatThread) => {
+    if (!currentUserId) return;
+    const chatRef = doc(db, "chats", thread.id);
+    const batch = writeBatch(db);
+    const messagesRef = collection(db, "chats", thread.id, "messages");
+    const unseenQuery = query(messagesRef, where("receiverId", "==", currentUserId), where("seen", "==", false), limit(200));
+    const snap = await getDocs(unseenQuery);
+    snap.docs.forEach((d) => batch.update(d.ref, { seen: true }));
+    const unreadField = thread.buyerId === currentUserId ? "unreadCountByBuyer" : "unreadCountBySeller";
+    batch.update(chatRef, { [unreadField]: 0 });
+    await batch.commit();
+  };
 
-    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-      const allMessages = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as ChatMessage[];
-      
-      // Filter messages for this conversation on the client side
-      const conversationMessages = allMessages.filter(message => 
-        (message.senderId === userId && message.receiverId === contactId) ||
-        (message.senderId === contactId && message.receiverId === userId)
-      ).map(message => ({
-        ...message,
-        type: message.senderId === userId ? 'sent' : 'received'
-      })) as ChatMessage[];
-      
-      setMessages(conversationMessages);
+  const filteredThreads = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return threads;
+    return threads.filter((t) => {
+      const other = getOtherName(t).toLowerCase();
+      const propertyTitle = (t.propertyTitle || "").toString().toLowerCase();
+      const lastMessage = (t.lastMessage || "").toString().toLowerCase();
+      return other.includes(q) || propertyTitle.includes(q) || lastMessage.includes(q);
+    });
+  }, [threads, searchQuery, currentUserId]);
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedThread || !currentUserId) return;
+    const receiverId = selectedThread.buyerId === currentUserId ? selectedThread.sellerId : selectedThread.buyerId;
+    const unreadField = receiverId === selectedThread.buyerId ? "unreadCountByBuyer" : "unreadCountBySeller";
+    const text = newMessage.trim();
+    setNewMessage("");
+
+    await addDoc(collection(db, "chats", selectedThread.id, "messages"), {
+      text,
+      senderId: currentUserId,
+      receiverId,
+      timestamp: serverTimestamp(),
+      seen: false,
     });
 
-    return unsubscribe;
+    await updateDoc(doc(db, "chats", selectedThread.id), {
+      lastMessage: text,
+      lastMessageTime: serverTimestamp(),
+      [unreadField]: increment(1),
+    });
   };
 
-  // Send message
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedContact) return;
-
+  const loadOlder = async () => {
+    if (!selectedThread || !hasMoreOlder || isLoadingOlder) return;
+    if (!oldestCursor) return;
+    setIsLoadingOlder(true);
+    suppressAutoScrollRef.current = true;
     try {
-      const userId = getUserId();
-      
-      await addDoc(collection(db, "chat_messages"), {
-        senderId: userId,
-        receiverId: selectedContact.id,
-        message: newMessage.trim(),
-        timestamp: serverTimestamp(),
-        propertyId: selectedContact.propertyTitle ? 'sample-property' : null,
-        propertyTitle: selectedContact.propertyTitle || null
-      });
-
-      setNewMessage("");
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
-  };
-
-  // Format time
-  const formatTime = (timestamp: any) => {
-    if (!timestamp) return "";
-    try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      const now = new Date();
-      const diff = now.getTime() - date.getTime();
-      
-      if (diff < 86400000) { // Less than 24 hours
-        return date.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: false 
-        });
-      } else if (diff < 604800000) { // Less than 7 days
-        return date.toLocaleDateString('en-US', { weekday: 'short' });
-      } else {
-        return date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric' 
-        });
+      const messagesRef = collection(db, "chats", selectedThread.id, "messages");
+      const q = query(messagesRef, orderBy("timestamp", "desc"), startAfter(oldestCursor), limit(20));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        setHasMoreOlder(false);
+        return;
       }
-    } catch {
-      return "";
+      const page = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ChatMessage, "id">) })) as ChatMessage[];
+      const normalized = page.map((m) => ({ ...m, seen: !!m.seen }));
+      const asc = [...normalized].reverse();
+      setMessages((prev) => [...asc, ...prev]);
+      setOldestCursor(snap.docs[snap.docs.length - 1]);
+      if (snap.docs.length < 20) setHasMoreOlder(false);
+    } finally {
+      setIsLoadingOlder(false);
+      setTimeout(() => {
+        suppressAutoScrollRef.current = false;
+      }, 0);
     }
   };
-
-  // Filter contacts based on search
-  const filteredContacts = contacts.filter(contact =>
-    contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    contact.phone.includes(searchQuery) ||
-    (contact.propertyTitle && contact.propertyTitle.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
 
   useEffect(() => {
-    if (isOpen) {
-      loadContacts();
-    }
+    if (!isOpen) return;
+    setLoading(true);
+    ensureSignedIn()
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !initialContact) return;
-    const contact: ChatContact = {
-      id: initialContact.id,
-      name: initialContact.name,
-      phone: initialContact.phone,
-      lastMessage: "",
-      lastMessageTime: new Date(),
-      unreadCount: 0,
-      isOnline: true,
-      propertyTitle: initialContact.propertyTitle
-    };
-    setSelectedContact(contact);
-    setContacts(prev => {
-      const exists = prev.some(c => c.id === contact.id);
-      return exists ? prev : [contact, ...prev];
-    });
-    if (initialMessage) {
-      setNewMessage(initialMessage);
-    }
-  }, [isOpen, initialContact, initialMessage]);
+    if (!isOpen || !currentUserId) return;
+    const chatsRef = collection(db, "chats");
+    const chatsQuery = query(chatsRef, where("participants", "array-contains", currentUserId), orderBy("lastMessageTime", "desc"));
+    const unsubscribe = onSnapshot(
+      chatsQuery,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ChatThread, "id">) })) as ChatThread[];
+        setThreads(list);
+        if (selectedThread) {
+          const next = list.find((t) => t.id === selectedThread.id) || null;
+          if (next) setSelectedThread(next);
+        }
+        setLoading(false);
+      },
+      () => setLoading(false)
+    );
+    return () => unsubscribe();
+  }, [isOpen, currentUserId]);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    
-    if (selectedContact) {
-      unsubscribe = loadMessages(selectedContact.id);
-    }
+    if (!isOpen || !initialContact) return;
+    if (!currentUserId) return;
 
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [selectedContact]);
+    const buyerId = initialContact.buyerId || currentUserId;
+    const sellerId = initialContact.sellerId;
+    if (!sellerId || buyerId === sellerId) return;
+
+    createChatIfMissing({
+      propertyId: initialContact.propertyId,
+      propertyTitle: initialContact.propertyTitle,
+      buyerId,
+      buyerName: initialContact.buyerName || currentUserName,
+      sellerId,
+      sellerName: initialContact.sellerName || null,
+    })
+      .then((chatId) => {
+        const existing = threads.find((t) => t.id === chatId);
+        if (existing) setSelectedThread(existing);
+      })
+      .catch(() => {});
+
+    if (initialMessage) setNewMessage(initialMessage);
+  }, [isOpen, initialContact, initialMessage, currentUserId, currentUserName, threads]);
+
+  useEffect(() => {
+    if (!selectedThread || !currentUserId) return;
+    setMessages([]);
+    setOldestCursor(null);
+    setHasMoreOlder(true);
+
+    const messagesRef = collection(db, "chats", selectedThread.id, "messages");
+    const q = query(messagesRef, orderBy("timestamp", "desc"), limit(20));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const page = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ChatMessage, "id">) })) as ChatMessage[];
+      const normalized = page.map((m) => ({ ...m, seen: !!m.seen }));
+      setMessages([...normalized].reverse());
+      setOldestCursor(snap.docs[snap.docs.length - 1] || null);
+      if (snap.docs.length < 20) setHasMoreOlder(false);
+    });
+    markThreadSeen(selectedThread).catch(() => {});
+    return () => unsubscribe();
+  }, [selectedThread?.id, currentUserId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!selectedThread) return;
+    if (suppressAutoScrollRef.current) return;
+    bottomRef.current?.scrollIntoView({ block: "end" });
+  }, [messages.length, selectedThread?.id, isOpen]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-2 sm:p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex overflow-hidden border border-gray-200">
-        {/* Left Sidebar - Contacts List */}
         <div className="w-full sm:w-1/3 bg-gradient-to-b from-blue-50 to-white border-r border-gray-200 flex flex-col">
-          {/* Header */}
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 flex items-center justify-between shadow-lg">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-blue-400/30 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md border border-blue-300/20">
@@ -298,7 +330,7 @@ export default function WhatsAppChatInterface({
               </div>
               <div>
                 <h2 className="font-bold text-lg">My Chats</h2>
-                <p className="text-xs text-blue-100">{contacts.length} conversations</p>
+                <p className="text-xs text-blue-100">{threads.length} conversations</p>
               </div>
             </div>
             <button
@@ -311,14 +343,13 @@ export default function WhatsAppChatInterface({
             </button>
           </div>
 
-          {/* Search */}
           <div className="p-4 bg-white border-b border-gray-100">
             <div className="relative">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search contacts..."
+                placeholder="Search chats..."
                 className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-gray-50 text-black"
               />
               <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -327,14 +358,13 @@ export default function WhatsAppChatInterface({
             </div>
           </div>
 
-          {/* Contacts List */}
           <div className="flex-1 overflow-y-auto bg-white">
             {loading ? (
               <div className="p-6 text-center">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
                 <p className="text-gray-600 text-sm">Loading chats...</p>
               </div>
-            ) : filteredContacts.length === 0 ? (
+            ) : filteredThreads.length === 0 ? (
               <div className="p-6 text-center">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,53 +372,42 @@ export default function WhatsAppChatInterface({
                   </svg>
                 </div>
                 <p className="text-gray-600 text-sm">No conversations found</p>
-                <p className="text-gray-400 text-xs mt-1">Start a new chat</p>
+                <p className="text-gray-400 text-xs mt-1">Start a new chat from a property</p>
               </div>
             ) : (
-              filteredContacts.map((contact) => (
+              filteredThreads.map((thread) => (
                 <div
-                  key={contact.id}
-                  onClick={() => setSelectedContact(contact)}
+                  key={thread.id}
+                  onClick={() => setSelectedThread(thread)}
                   className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-all duration-200 ${
-                    selectedContact?.id === contact.id ? 'bg-blue-100 border-l-4 border-l-blue-600 shadow-sm' : ''
+                    selectedThread?.id === thread.id ? "bg-blue-100 border-l-4 border-l-blue-600 shadow-sm" : ""
                   }`}
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="relative">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
-                        {contact.name.charAt(0).toUpperCase()}
-                      </div>
-                      {contact.isOnline && (
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-                      )}
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                      {getOtherName(thread).charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-gray-900 truncate text-sm">{contact.name}</h3>
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatTime(contact.lastMessageTime)}</span>
+                        <h3 className="font-semibold text-gray-900 truncate text-sm">{getOtherName(thread)}</h3>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatTime(thread.lastMessageTime)}</span>
                       </div>
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm text-gray-600 truncate">{contact.lastMessage}</p>
-                        {contact.unreadCount > 0 && (
+                        <p className="text-sm text-gray-600 truncate">{thread.lastMessage || ""}</p>
+                        {getUnreadCount(thread) > 0 && (
                           <span className="bg-blue-600 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center font-medium">
-                            {contact.unreadCount}
+                            {getUnreadCount(thread)}
                           </span>
                         )}
                       </div>
-                      {contact.propertyTitle && (
+                      {thread.propertyTitle && (
                         <p className="text-xs text-blue-600 mb-1 flex items-center">
                           <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                           </svg>
-                          {contact.propertyTitle}
+                          {thread.propertyTitle}
                         </p>
                       )}
-                      <p className="text-xs text-gray-500 flex items-center">
-                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                        </svg>
-                        {contact.phone}
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -397,44 +416,41 @@ export default function WhatsAppChatInterface({
           </div>
         </div>
 
-        {/* Right Side - Chat Area */}
         <div className="flex-1 flex flex-col bg-gradient-to-b from-gray-50 to-white">
-          {selectedContact ? (
+          {selectedThread ? (
             <>
-              {/* Chat Header */}
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 flex items-center justify-between shadow-lg">
                 <div className="flex items-center space-x-3">
-                  <div className="relative">
-                    <div className="w-11 h-11 bg-blue-400/30 backdrop-blur-sm rounded-full flex items-center justify-center font-bold text-lg shadow-md border border-blue-300/20">
-                      {selectedContact.name.charAt(0).toUpperCase()}
-                    </div>
-                    {selectedContact.isOnline && (
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
-                    )}
+                  <div className="w-11 h-11 bg-blue-400/30 backdrop-blur-sm rounded-full flex items-center justify-center font-bold text-lg shadow-md border border-blue-300/20">
+                    {getOtherName(selectedThread).charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">{selectedContact.name}</h3>
-                    <p className="text-xs text-blue-100 flex items-center">
-                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${selectedContact.isOnline ? 'bg-green-400' : 'bg-gray-400'}`}></span>
-                      {selectedContact.isOnline ? 'Online' : 'Last seen recently'} • {selectedContact.phone}
-                    </p>
+                    <h3 className="font-bold text-lg">{getOtherName(selectedThread)}</h3>
+                    <p className="text-xs text-blue-100">{selectedThread.propertyTitle || ""}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <a
-                    href={`tel:${selectedContact.phone}`}
-                    className="p-2 hover:bg-blue-500/30 rounded-full transition-colors shadow-sm"
-                    title="Call"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                    </svg>
-                  </a>
-                </div>
+                <div />
               </div>
 
-              {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{backgroundImage: "url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><defs><pattern id=\"chat-bg\" x=\"0\" y=\"0\" width=\"20\" height=\"20\" patternUnits=\"userSpaceOnUse\"><circle cx=\"10\" cy=\"10\" r=\"1\" fill=\"%23f0f0f0\" opacity=\"0.3\"/></pattern></defs><rect width=\"100\" height=\"100\" fill=\"url(%23chat-bg)\"/></svg>')"}}>
+              <div
+                className="flex-1 overflow-y-auto p-4 space-y-4"
+                style={{
+                  backgroundImage:
+                    "url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><defs><pattern id=\"chat-bg\" x=\"0\" y=\"0\" width=\"20\" height=\"20\" patternUnits=\"userSpaceOnUse\"><circle cx=\"10\" cy=\"10\" r=\"1\" fill=\"%23f0f0f0\" opacity=\"0.3\"/></pattern></defs><rect width=\"100\" height=\"100\" fill=\"url(%23chat-bg)\"/></svg>')",
+                }}
+              >
+                {hasMoreOlder && (
+                  <div className="flex justify-center">
+                    <button
+                      onClick={loadOlder}
+                      disabled={isLoadingOlder}
+                      className="text-xs bg-white border border-gray-200 hover:bg-gray-50 px-3 py-1 rounded-full text-gray-700"
+                    >
+                      {isLoadingOlder ? "Loading..." : "Load older"}
+                    </button>
+                  </div>
+                )}
+
                 {messages.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -443,48 +459,42 @@ export default function WhatsAppChatInterface({
                       </svg>
                     </div>
                     <p className="text-gray-600 font-medium">Start a conversation</p>
-                    <p className="text-gray-500 text-sm mt-1">Chat with {selectedContact.name}</p>
+                    <p className="text-gray-500 text-sm mt-1">Chat about {selectedThread.propertyTitle || "this property"}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.type === 'sent' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${
-                            message.type === 'sent'
-                              ? 'bg-blue-600 text-white rounded-br-md'
-                              : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
-                          }`}
-                        >
-                          <p className="text-sm leading-relaxed">{message.message}</p>
-                          <p className={`text-xs mt-2 ${
-                            message.type === 'sent' ? 'text-blue-100' : 'text-gray-500'
-                          }`}>
-                            {formatTime(message.timestamp)}
-                            {message.type === 'sent' && (
-                              <svg className="w-4 h-4 inline ml-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </p>
+                    {messages.map((message) => {
+                      const isMine = message.senderId === currentUserId;
+                      return (
+                        <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                          <div
+                            className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${
+                              isMine ? "bg-blue-600 text-white rounded-br-md" : "bg-white text-gray-800 border border-gray-200 rounded-bl-md"
+                            }`}
+                          >
+                            <p className="text-sm leading-relaxed">{message.text}</p>
+                            <p className={`text-xs mt-2 ${isMine ? "text-blue-100" : "text-gray-500"}`}>
+                              {formatTime(message.timestamp)}
+                              {isMine && (
+                                <span className="ml-2">{message.seen ? "Seen" : "Sent"}</span>
+                              )}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+                    <div ref={bottomRef} />
                   </div>
                 )}
               </div>
 
-              {/* Message Input */}
               <div className="p-4 bg-white border-t border-gray-200 shadow-lg">
                 <div className="flex items-center space-x-3">
                   <input
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                     placeholder="Type a message..."
                     className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 text-black"
                   />
@@ -501,7 +511,6 @@ export default function WhatsAppChatInterface({
               </div>
             </>
           ) : (
-            /* No Chat Selected */
             <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
               <div className="text-center">
                 <div className="w-32 h-32 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
@@ -511,7 +520,7 @@ export default function WhatsAppChatInterface({
                 </div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-3">Welcome to Property Chat</h3>
                 <p className="text-gray-600 text-lg">Select a conversation to start chatting</p>
-                <p className="text-gray-500 text-sm mt-2">Connect with your property agents</p>
+                <p className="text-gray-500 text-sm mt-2">Chat is saved in real time</p>
               </div>
             </div>
           )}
