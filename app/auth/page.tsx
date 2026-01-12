@@ -184,7 +184,7 @@ function AuthPageContent() {
       const userCredential = await signInWithPopup(auth, provider);
       const user = userCredential.user;
 
-      const userRef = doc(db, "users", user.uid);
+      const userRef = doc(db, "property_All", "main", "users", user.uid);
       const snap = await getDoc(userRef);
       if (!snap.exists()) {
         await setDoc(userRef, {
@@ -255,7 +255,7 @@ function AuthPageContent() {
 
       const user = userCredential.user;
 
-      const userRef = doc(db, "users", user.uid);
+      const userRef = doc(db, "property_All", "main", "users", user.uid);
       const snap = await getDoc(userRef);
       if (!snap.exists()) {
         await setDoc(userRef, {
@@ -513,7 +513,7 @@ function AuthPageContent() {
                       if (auth.currentUser) {
                         try { await updateProfile(auth.currentUser, { displayName: name }); } catch {}
                       }
-                      await setDoc(doc(db, "users", uid), { displayName: name }, { merge: true });
+                      await setDoc(doc(db, "property_All", "main", "users", uid), { displayName: name }, { merge: true });
                     }
                     if (!name) return;
                     setCaptureNameOpen(false);

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { useChat } from '@/app/context/ChatContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
   
@@ -11,7 +12,9 @@ export default function Header() {
   const [isManagePropertyOpen, setIsManagePropertyOpen] = useState(false);
   const [isResourcesOpen, setIsResourcesOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isMobileUserOpen, setIsMobileUserOpen] = useState(false);
   const { user, logout, loading } = useAuth();
+  const { openChat } = useChat();
   const [profileName, setProfileName] = useState<string | null>(null);
 
   const handleLogout = async () => {
@@ -27,7 +30,7 @@ export default function Header() {
         return;
       }
       try {
-        const ref = doc(db, 'users', user.uid);
+        const ref = doc(db, 'property_All', 'main', 'users', user.uid);
         const snap = await getDoc(ref);
         const dn = snap.exists() ? (snap.data()?.displayName as string | undefined) : undefined;
         if (dn && dn.trim()) setProfileName(dn);
@@ -35,6 +38,20 @@ export default function Header() {
     };
     loadName();
   }, [user?.uid, user?.displayName]);
+  
+  useEffect(() => {
+    const onOpenChat = () => {
+      setIsMenuOpen(false);
+      setIsUserMenuOpen(false);
+      setIsManagePropertyOpen(false);
+      setIsResourcesOpen(false);
+      setIsMobileUserOpen(false);
+    };
+    window.addEventListener("open-chat", onOpenChat as EventListener);
+    return () => {
+      window.removeEventListener("open-chat", onOpenChat as EventListener);
+    };
+  }, []);
 
   const getUserInitial = () => {
     const name = (profileName || user?.displayName || "").trim();
@@ -60,20 +77,24 @@ export default function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link href="/rent" className="text-white hover:text-blue-100 transition-colors">
+            <Link href="/property?type=rent" className="text-white hover:text-blue-100 transition-colors">
               Rent
             </Link>
-            <Link href="/buy" className="text-white hover:text-blue-100 transition-colors">
+            <Link href="/property?type=buy" className="text-white hover:text-blue-100 transition-colors">
               Buy
             </Link>
-            <Link href="/sell" className="text-white hover:text-blue-100 transition-colors">
+            <Link href="/property?type=sell" className="text-white hover:text-blue-100 transition-colors">
               Sell
             </Link>
             
             {/* Manage Property Dropdown */}
             <div className="relative">
               <button
-                onClick={() => setIsManagePropertyOpen(!isManagePropertyOpen)}
+                onClick={() => {
+                  setIsManagePropertyOpen(!isManagePropertyOpen);
+                  setIsResourcesOpen(false);
+                  setIsUserMenuOpen(false);
+                }}
                 className="text-white hover:text-blue-100 transition-colors flex items-center space-x-1"
               >
                 <span>Manage Property</span>
@@ -83,14 +104,11 @@ export default function Header() {
               </button>
               {isManagePropertyOpen && (
                 <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50">
-                  <Link href="/manage/dashboard" className="block px-4 py-2 text-gray-800 hover:bg-blue-50">
+                  <Link href="/manage/dashboard" className="block px-4 py-2 text-gray-800 hover:bg-blue-50" onClick={() => setIsManagePropertyOpen(false)}>
                     Dashboard
                   </Link>
-                  <Link href="/manage/properties" className="block px-4 py-2 text-gray-800 hover:bg-blue-50">
+                  <Link href="/manage/properties" className="block px-4 py-2 text-gray-800 hover:bg-blue-50" onClick={() => setIsManagePropertyOpen(false)}>
                     My Favourite Property
-                  </Link>
-                  <Link href="/manage/tenants" className="block px-4 py-2 text-gray-800 hover:bg-blue-50">
-                    Tenants
                   </Link>
                 </div>
               )}
@@ -99,24 +117,28 @@ export default function Header() {
             {/* Resources Dropdown */}
             <div className="relative">
               <button
-                onClick={() => setIsResourcesOpen(!isResourcesOpen)}
+                onClick={() => {
+                  setIsResourcesOpen(!isResourcesOpen);
+                  setIsManagePropertyOpen(false);
+                  setIsUserMenuOpen(false);
+                }}
                 className="text-white hover:text-blue-100 transition-colors flex items-center space-x-1"
               >
-                <span>Resources</span>
+                <span>Location</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
               {isResourcesOpen && (
                 <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50">
-                  <Link href="/resources/guides" className="block px-4 py-2 text-gray-800 hover:bg-blue-50">
-                    Guides
+                  <Link href="/property?location=Noida" className="block px-4 py-2 text-gray-800 hover:bg-blue-50" onClick={() => setIsResourcesOpen(false)}>
+                    Noida
                   </Link>
-                  <Link href="/resources/calculator" className="block px-4 py-2 text-gray-800 hover:bg-blue-50">
-                    Calculator
+                  <Link href="/property?location=Goa" className="block px-4 py-2 text-gray-800 hover:bg-blue-50" onClick={() => setIsResourcesOpen(false)}>
+                    Goa
                   </Link>
-                  <Link href="/resources/blog" className="block px-4 py-2 text-gray-800 hover:bg-blue-50">
-                    Blog
+                  <Link href="/property?location=Dehradun" className="block px-4 py-2 text-gray-800 hover:bg-blue-50" onClick={() => setIsResourcesOpen(false)}>
+                    Dehradun
                   </Link>
                 </div>
               )}
@@ -127,11 +149,15 @@ export default function Header() {
           <div className="hidden md:flex items-center space-x-4">
             {loading ? (
               <div className="w-8 h-8 animate-pulse bg-white/20 rounded-full"></div>
-            ) : user ? (
+            ) : user && !user.isAnonymous ? (
               /* User Avatar Dropdown */
               <div className="relative">
                 <button
-                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  onClick={() => {
+                    setIsUserMenuOpen(!isUserMenuOpen);
+                    setIsManagePropertyOpen(false);
+                    setIsResourcesOpen(false);
+                  }}
                   className="w-10 h-10 bg-white text-blue-600 rounded-full flex items-center justify-center font-semibold hover:bg-blue-50 transition-colors"
                 >
                   {getUserInitial()}
@@ -142,11 +168,8 @@ export default function Header() {
                       <p className="text-sm text-gray-600">Signed in as</p>
                       <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
                     </div>
-                    <Link href="/profile" className="block px-4 py-2 text-gray-800 hover:bg-blue-50">
+                    <Link href="/profile" className="block px-4 py-2 text-gray-800 hover:bg-blue-50" onClick={() => setIsUserMenuOpen(false)}>
                       Profile
-                    </Link>
-                    <Link href="/settings" className="block px-4 py-2 text-gray-800 hover:bg-blue-50">
-                      Settings
                     </Link>
                     <button
                       onClick={handleLogout}
@@ -198,28 +221,40 @@ export default function Header() {
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-blue-500 rounded-lg mt-2">
               <Link
-                href="/rent"
+                href="/property?type=rent"
                 className="text-white hover:text-blue-100 block px-3 py-2 rounded-md text-base font-medium"
               >
                 Rent
               </Link>
               <Link
-                href="/buy"
+                href="/property?type=buy"
                 className="text-white hover:text-blue-100 block px-3 py-2 rounded-md text-base font-medium"
               >
                 Buy
               </Link>
               <Link
-                href="/sell"
+                href="/property?type=sell"
                 className="text-white hover:text-blue-100 block px-3 py-2 rounded-md text-base font-medium"
               >
                 Sell
               </Link>
+              <button
+                onClick={() => {
+                  openChat();
+                  setIsMenuOpen(false);
+                }}
+                className="text-white hover:text-blue-100 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+              >
+                Messages
+              </button>
               
               {/* Mobile Manage Property */}
               <div className="px-3 py-2">
                 <button
-                  onClick={() => setIsManagePropertyOpen(!isManagePropertyOpen)}
+                  onClick={() => {
+                    setIsManagePropertyOpen(!isManagePropertyOpen);
+                    setIsResourcesOpen(false);
+                  }}
                   className="text-white hover:text-blue-100 flex items-center justify-between w-full text-base font-medium"
                 >
                   <span>Manage Property</span>
@@ -229,14 +264,11 @@ export default function Header() {
                 </button>
                 {isManagePropertyOpen && (
                   <div className="mt-2 space-y-1 pl-4">
-                    <Link href="/manage/dashboard" className="text-blue-100 block py-1">
+                    <Link href="/manage/dashboard" className="text-blue-100 block py-1" onClick={() => setIsMenuOpen(false)}>
                       Dashboard
                     </Link>
-                    <Link href="/manage/properties" className="text-blue-100 block py-1">
+                    <Link href="/manage/properties" className="text-blue-100 block py-1" onClick={() => setIsMenuOpen(false)}>
                       My Favourite Property
-                    </Link>
-                    <Link href="/manage/tenants" className="text-blue-100 block py-1">
-                      Tenants
                     </Link>
                   </div>
                 )}
@@ -245,24 +277,27 @@ export default function Header() {
               {/* Mobile Resources */}
               <div className="px-3 py-2">
                 <button
-                  onClick={() => setIsResourcesOpen(!isResourcesOpen)}
+                  onClick={() => {
+                    setIsResourcesOpen(!isResourcesOpen);
+                    setIsManagePropertyOpen(false);
+                  }}
                   className="text-white hover:text-blue-100 flex items-center justify-between w-full text-base font-medium"
                 >
-                  <span>Resources</span>
+                  <span>Location</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
                 {isResourcesOpen && (
                   <div className="mt-2 space-y-1 pl-4">
-                    <Link href="/resources/guides" className="text-blue-100 block py-1">
-                      Guides
+                    <Link href="/property?location=Noida" className="text-blue-100 block py-1" onClick={() => setIsMenuOpen(false)}>
+                      Noida
                     </Link>
-                    <Link href="/resources/calculator" className="text-blue-100 block py-1">
-                      Calculator
+                    <Link href="/property?location=Goa" className="text-blue-100 block py-1" onClick={() => setIsMenuOpen(false)}>
+                      Goa
                     </Link>
-                    <Link href="/resources/blog" className="text-blue-100 block py-1">
-                      Blog
+                    <Link href="/property?location=Dehradun" className="text-blue-100 block py-1" onClick={() => setIsMenuOpen(false)}>
+                      Dehradun
                     </Link>
                   </div>
                 )}
@@ -272,35 +307,46 @@ export default function Header() {
               <div className="px-3 py-2 space-y-2">
                 {loading ? (
                   <div className="w-8 h-8 animate-pulse bg-white/20 rounded-full mx-auto"></div>
-                ) : user ? (
+                ) : user && !user.isAnonymous ? (
                   <>
-                    <div className="flex items-center space-x-3 px-3 py-2 bg-blue-600 rounded-md">
-                      <div className="w-8 h-8 bg-white text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm">
-                        {getUserInitial()}
-                      </div>
-                      <div>
-                        <p className="text-white text-sm font-medium">Signed in as</p>
-                        <p className="text-blue-100 text-xs truncate">{user.email}</p>
-                      </div>
-                    </div>
-                    <Link
-                      href="/profile"
-                      className="text-white block text-center px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                    >
-                      Profile
-                    </Link>
-                    <Link
-                      href="/settings"
-                      className="text-white block text-center px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
-                    >
-                      Settings
-                    </Link>
                     <button
-                      onClick={handleLogout}
-                      className="text-white block w-full text-center px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                      type="button"
+                      onClick={() => setIsMobileUserOpen(!isMobileUserOpen)}
+                      className="flex items-center justify-between w-full px-3 py-2 bg-blue-600 rounded-md"
                     >
-                      Sign out
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-white text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm">
+                          {getUserInitial()}
+                        </div>
+                        <div className="text-left">
+                          <p className="text-white text-sm font-medium">Signed in as</p>
+                          <p className="text-blue-100 text-xs truncate">{user.email}</p>
+                        </div>
+                      </div>
+                      <svg className={`w-4 h-4 text-white ${isMobileUserOpen ? "transform rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </button>
+                    {isMobileUserOpen && (
+                      <>
+                        <Link
+                          href="/profile"
+                          className="text-white block text-center px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            setIsMobileUserOpen(false);
+                          }}
+                        >
+                          Profile
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="text-white block w-full text-center px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                        >
+                          Sign out
+                        </button>
+                      </>
+                    )}
                   </>
                 ) : (
                   <>

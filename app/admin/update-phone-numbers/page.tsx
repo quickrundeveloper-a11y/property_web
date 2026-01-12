@@ -32,8 +32,7 @@ export default function UpdatePhoneNumbers() {
   const fetchProperties = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, "properties"), orderBy("createdAt", "desc"));
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocs(collection(db, "property_All", "main", "properties"));
       const data = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -54,7 +53,7 @@ export default function UpdatePhoneNumbers() {
         const property = properties[i];
         const phoneNumber = phoneNumbers[i] || phoneNumbers[phoneNumbers.length - 1];
         
-        await updateDoc(doc(db, "properties", property.id), {
+        await updateDoc(doc(db, "property_All", "main", "properties", property.id), {
           phone: phoneNumber,
           contact: phoneNumber,
           updatedAt: new Date()

@@ -53,6 +53,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
     
+    // Allow read/write access to property_All collection (used by app)
+    match /property_All/{document=**} {
+      allow read, write: if true;
+    }
+    
     // Allow read/write access to sms collection
     match /sms/{document} {
       allow read, write: if true;

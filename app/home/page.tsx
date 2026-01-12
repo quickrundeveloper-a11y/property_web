@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where, serverTimestamp, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where, serverTimestamp, onSnapshot, setDoc, runTransaction } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
-import FloatingSMSWidget from "../components/floating-sms-widget";
+import { useAuth } from "@/lib/auth-context";
+import { useChat } from "@/app/context/ChatContext";
+
 import AddPropertyForm from "../components/add-property-form";
 
 export default function Home() {
@@ -18,60 +20,81 @@ export default function Home() {
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [favoriteProperties, setFavoriteProperties] = useState<Set<string>>(new Set());
   const router = useRouter();
+  const { user } = useAuth();
+  const { openChat } = useChat();
 
-  const handleSMSClick = (property: any) => {
+  const handleSMSClick = async (property: any) => {
     const propertyName = property.title || property.name || "Property";
     const propertyLocation = property.location || property.address || "Location";
     const price = formatPrice(property);
-    const phone = property.phone || property.contact || "+91-9876543210";
     const propertyId = property.id;
     const sellerId = property.sellerId || property.ownerId || property.userId || null;
-    if (!propertyId || !sellerId) {
-      console.warn("Cannot open chat: Missing seller ID for property", property.id);
+    
+    if (!propertyId || !sellerId || !user) {
+      console.warn("Cannot open chat: Missing details or user session", { propertyId, sellerId, user: !!user });
+      if (!user) {
+        router.push("/auth");
+        return;
+      }
       alert("This property owner cannot be contacted at the moment (Missing owner details).");
       return;
     }
+
     const message = `Hi! I'm interested in ${propertyName} located at ${propertyLocation} priced at ₹${price.toLocaleString()}/month. Could you please provide more details about this property?`;
-    const event = new CustomEvent("open-chat", {
-      detail: {
-        contact: {
-          propertyId,
-          propertyTitle: propertyName,
-          sellerId,
-          sellerName: property.contactName || property.sellerName || "Property Owner",
-          phone,
-        },
-        message
-      }
-    });
-    window.dispatchEvent(event);
-  };
 
-  // Get user ID (simple implementation - you might want proper auth)
-  const getUserId = () => {
-    let userId = localStorage.getItem('userId');
-    if (!userId) {
-      userId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-      localStorage.setItem('userId', userId);
-    }
-    return userId;
-  };
+    // Create chat ID using Flutter-compatible logic (sorted UIDs)
+    const [uid1, uid2] = [user.uid, sellerId].sort();
+    const chatId = `${propertyId}_${uid1}_${uid2}`;
 
-  // Fallback favorites using localStorage
-  const getFavoritesFromStorage = (): Set<string> => {
     try {
-      const stored = localStorage.getItem('favorites');
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
-  };
+      await runTransaction(db, async (transaction) => {
+        // Use the correct collection path: property_All/main/chats
+        const chatRef = doc(db, "property_All", "main", "chats", chatId);
+        const chatDoc = await transaction.get(chatRef);
 
-  const saveFavoritesToStorage = (favorites: Set<string>) => {
-    try {
-      localStorage.setItem('favorites', JSON.stringify([...favorites]));
+        if (!chatDoc.exists()) {
+          const buyerName = user.displayName || "Buyer";
+          const sellerName = property.contactName || property.sellerName || "Property Owner";
+          
+          transaction.set(chatRef, {
+            chatId,
+            propertyId,
+            propertyName,
+            users: [user.uid, sellerId],
+            userNames: {
+              [user.uid]: buyerName,
+              [sellerId]: sellerName
+            },
+            lastMessage: message,
+            lastSenderId: user.uid,
+            lastUpdated: serverTimestamp(),
+            unreadCounts: {
+              [user.uid]: 0,
+              [sellerId]: 1
+            },
+            // Add fields to match the screenshot structure for better compatibility
+            buyerId: user.uid,
+            buyerName: buyerName,
+            sellerId: sellerId,
+            sellerName: sellerName,
+            participants: [user.uid, sellerId]
+          });
+
+          // Also create the first message in the subcollection
+          const messageRef = doc(collection(db, "property_All", "main", "chats", chatId, "messages"));
+          transaction.set(messageRef, {
+            text: message,
+            senderId: user.uid,
+            senderName: buyerName,
+            createdAt: serverTimestamp()
+          });
+        }
+      });
+
+      openChat(chatId);
     } catch (error) {
-      console.error("Error saving to localStorage:", error);
+      console.error("Error creating chat:", error);
+      alert("Failed to start chat. Please try again.");
     }
   };
 
@@ -249,22 +272,18 @@ export default function Home() {
 
   // Load user's favorite properties
   const loadFavorites = async () => {
+    if (!user) {
+      setFavoriteProperties(new Set());
+      return;
+    }
     try {
-      const userId = getUserId();
-      const favoritesQuery = query(
-        collection(db, "favorites"),
-        where("userId", "==", userId)
-      );
+      const favoritesQuery = collection(db, "property_All", "main", "users", user.uid, "favorite");
       const snapshot = await getDocs(favoritesQuery);
-      const favoriteIds = new Set(snapshot.docs.map(doc => doc.data().propertyId));
+      const favoriteIds = new Set(snapshot.docs.map(doc => doc.id));
       setFavoriteProperties(favoriteIds);
-      console.log(`Loaded ${favoriteIds.size} favorites from Firebase for user ${userId}`);
+      console.log(`Loaded ${favoriteIds.size} favorites from Firebase for user ${user.uid}`);
     } catch (error) {
       console.error("Error loading favorites from Firebase:", error);
-      // Fallback to localStorage
-      const localFavorites = getFavoritesFromStorage();
-      setFavoriteProperties(localFavorites);
-      console.log(`Loaded ${localFavorites.size} favorites from localStorage (fallback)`);
     }
   };
 
@@ -273,69 +292,45 @@ export default function Home() {
     e.stopPropagation(); // Prevent card click
     
     // Validate inputs
-    if (!propertyId || !e.currentTarget) {
+    if (!propertyId) {
       console.error("Invalid parameters for toggleFavorite");
       return;
     }
+
+    if (!user) {
+        router.push("/auth");
+        return;
+    }
     
-    const userId = getUserId();
     const isFavorite = favoriteProperties.has(propertyId);
 
     try {
       if (isFavorite) {
         // Remove from favorites
-        const favoritesQuery = query(
-          collection(db, "favorites"),
-          where("userId", "==", userId),
-          where("propertyId", "==", propertyId)
-        );
-        const snapshot = await getDocs(favoritesQuery);
-        
-        // Delete all matching documents
-        const deletePromises = snapshot.docs.map(docRef => 
-          deleteDoc(doc(db, "favorites", docRef.id))
-        );
-        await Promise.all(deletePromises);
-
+        await deleteDoc(doc(db, "property_All", "main", "users", user.uid, "favorite", propertyId));
         console.log(`Removed property ${propertyId} from Firebase favorites`);
-        
       } else {
         // Add to favorites
-        await addDoc(collection(db, "favorites"), {
-          userId: userId,
+        await setDoc(doc(db, "property_All", "main", "users", user.uid, "favorites", propertyId), {
           propertyId: propertyId,
-          createdAt: serverTimestamp()
+          addedAt: new Date().toISOString()
         });
-
         console.log(`Added property ${propertyId} to Firebase favorites`);
       }
       
-      // Update local state and localStorage
-      const newFavorites = new Set(favoriteProperties);
-      if (isFavorite) {
-        newFavorites.delete(propertyId);
-      } else {
-        newFavorites.add(propertyId);
-      }
-      
-      setFavoriteProperties(newFavorites);
-      saveFavoritesToStorage(newFavorites);
+      // Update local state
+      setFavoriteProperties(prev => {
+        const next = new Set(prev);
+        if (isFavorite) {
+          next.delete(propertyId);
+        } else {
+          next.add(propertyId);
+        }
+        return next;
+      });
       
     } catch (error) {
-      console.error("Firebase error, using localStorage fallback:", error);
-      
-      // Fallback to localStorage only
-      const newFavorites = new Set(favoriteProperties);
-      if (isFavorite) {
-        newFavorites.delete(propertyId);
-      } else {
-        newFavorites.add(propertyId);
-      }
-      
-      setFavoriteProperties(newFavorites);
-      saveFavoritesToStorage(newFavorites);
-      
-      console.log(`Updated favorites using localStorage fallback`);
+      console.error("Firebase error:", error);
     }
 
     // Show visual feedback
@@ -363,7 +358,7 @@ export default function Home() {
       setError(null);
 
       const q = query(
-        collection(db, "properties"),
+        collection(db, "property_All", "main", "properties"),
         orderBy("createdAt", "desc")
       );
       const snapshot = await getDocs(q);
@@ -415,11 +410,14 @@ export default function Home() {
 
   useEffect(() => {
     fetchProperties();
-    loadFavorites(); // Load user's favorites
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, "properties"), orderBy("createdAt", "desc"));
+    loadFavorites(); // Load user's favorites
+  }, [user]);
+
+  useEffect(() => {
+    const q = query(collection(db, "property_All", "main", "properties"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setProperties(data);
@@ -470,7 +468,7 @@ export default function Home() {
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 lg:p-6 border border-white/20">
                 <div className="flex flex-wrap gap-2 mb-4 lg:mb-6">
                   <button
-                    onClick={() => setActiveTab("Rent")}
+                    onClick={() => router.push("/property?type=rent")}
                     className={`px-4 lg:px-6 py-2 rounded-lg font-medium transition-colors text-sm lg:text-base ${
                       activeTab === "Rent"
                         ? "bg-white text-blue-600"
@@ -480,7 +478,7 @@ export default function Home() {
                     Rent
                   </button>
                   <button
-                    onClick={() => setActiveTab("Buy")}
+                    onClick={() => router.push("/property?type=buy")}
                     className={`px-4 lg:px-6 py-2 rounded-lg font-medium transition-colors text-sm lg:text-base ${
                       activeTab === "Buy"
                         ? "bg-white text-blue-600"
@@ -490,7 +488,7 @@ export default function Home() {
                     Buy
                   </button>
                   <button
-                    onClick={() => setActiveTab("Sell")}
+                    onClick={() => router.push("/property?type=sell")}
                     className={`px-4 lg:px-6 py-2 rounded-lg font-medium transition-colors text-sm lg:text-base ${
                       activeTab === "Sell"
                         ? "bg-white text-blue-600"
@@ -513,7 +511,10 @@ export default function Home() {
                   <button 
                     onClick={() => {
                       const searchParams = new URLSearchParams();
-                      if (location) searchParams.set('location', location);
+                      // Only include location if it's not the default value
+                      if (location && location !== "Barcelona, Spain") {
+                        searchParams.set('location', location);
+                      }
                       if (moveInDate) searchParams.set('date', moveInDate);
                       if (activeTab) searchParams.set('type', activeTab.toLowerCase());
                       
@@ -1060,7 +1061,6 @@ export default function Home() {
       </section>
 
       {/* Floating SMS Widget */}
-      <FloatingSMSWidget />
     </div>
   );
 }

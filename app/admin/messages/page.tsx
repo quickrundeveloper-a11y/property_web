@@ -22,7 +22,7 @@ export default function MessagesAdmin() {
 
   useEffect(() => {
     // Real-time listener for messages
-    const q = query(collection(db, "messages"), orderBy("timestamp", "desc"));
+    const q = query(collection(db, "property_All", "main", "messages"), orderBy("timestamp", "desc"));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const messagesData = snapshot.docs.map((doc) => ({
@@ -63,7 +63,7 @@ export default function MessagesAdmin() {
   const deleteMessage = async (messageId: string) => {
     if (confirm("Are you sure you want to delete this message?")) {
       try {
-        await deleteDoc(doc(db, "messages", messageId));
+        await deleteDoc(doc(db, "property_All", "main", "messages", messageId));
         console.log("Message deleted:", messageId);
       } catch (error) {
         console.error("Error deleting message:", error);

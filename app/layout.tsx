@@ -3,7 +3,9 @@ import { Lexend } from "next/font/google";
 import "./globals.css";
 import ConditionalLayout from "./conditional-layout";
 import { AuthProvider } from "@/lib/auth-context";
-import SMSWidget from "./components/sms-widget";
+import { ChatProvider } from "@/app/context/ChatContext";
+import ChatModal from "@/app/components/chat/ChatModal";
+import FloatingChatButton from "@/app/components/chat/FloatingChatButton";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -26,10 +28,13 @@ export default function RootLayout({
         className={`${lexend.variable} font-lexend antialiased`}
       >
         <AuthProvider>
-          <ConditionalLayout>
-            {children}
-          </ConditionalLayout>
-          <SMSWidget />
+          <ChatProvider>
+            <ConditionalLayout>
+              {children}
+            </ConditionalLayout>
+            <ChatModal />
+            <FloatingChatButton />
+          </ChatProvider>
         </AuthProvider>
       </body>
     </html>

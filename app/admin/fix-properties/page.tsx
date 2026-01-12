@@ -24,7 +24,7 @@ export default function FixPropertiesPage() {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, "properties"));
+      const querySnapshot = await getDocs(collection(db, "property_All", "main", "properties"));
       let missingCount = 0;
       querySnapshot.forEach((doc) => {
         const data = doc.data();
@@ -46,7 +46,7 @@ export default function FixPropertiesPage() {
     setLog([]);
     
     try {
-      const querySnapshot = await getDocs(collection(db, "properties"));
+      const querySnapshot = await getDocs(collection(db, "property_All", "main", "properties"));
       const batch = writeBatch(db);
       let count = 0;
       const newLogs: string[] = [];
@@ -54,7 +54,7 @@ export default function FixPropertiesPage() {
       querySnapshot.forEach((d) => {
         const data = d.data();
         if (!data.sellerId && !data.ownerId && !data.userId) {
-          const ref = doc(db, "properties", d.id);
+          const ref = doc(db, "property_All", "main", "properties", d.id);
           // Assign current user as seller
           batch.update(ref, { 
             sellerId: user.uid,

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, runTransaction, serverTimestamp, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import FloatingSMSWidget from "@/app/components/floating-sms-widget";
+import { useAuth } from "@/lib/auth-context";
+import { useChat } from "@/app/context/ChatContext";
 
 interface Property {
   id: string;
@@ -16,7 +17,7 @@ interface Property {
   size: string;
   amenities?: string[];
   features: string[];
-  phone: string;
+  phone?: string;
   image: string;
   images?: string[];
   description?: string;
@@ -34,6 +35,8 @@ interface Property {
 export default function PropertyDetails() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
+  const { openChat } = useChat();
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -127,7 +130,7 @@ export default function PropertyDetails() {
           }
         } else {
           // Fetch from Firebase
-          const docRef = doc(db, "properties", params.id as string);
+          const docRef = doc(db, "property_All", "main", "properties", params.id as string);
           const docSnap = await getDoc(docRef);
 
           if (docSnap.exists()) {
@@ -364,9 +367,9 @@ export default function PropertyDetails() {
                 <div className="text-lg font-semibold text-gray-800 mb-1">Property Owner</div>
                 <div className="text-gray-600 flex items-center">
                   <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                    <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
                   </svg>
-                  {property.phone || "+91-9876543210"}
+                  {property.contactName || "Property Owner"}
                 </div>
               </div>
 
@@ -376,25 +379,77 @@ export default function PropertyDetails() {
                 </button>
 
                 <button 
-                  onClick={() => {
-                    const sellerId = property.sellerId || null;
-                    if (!sellerId) {
+                  onClick={async () => {
+                    const sellerId =
+                      property.sellerId ||
+                      (property as any).ownerId ||
+                      (property as any).userId ||
+                      null;
+
+                    if (!sellerId || !user) {
+                      if (!user) {
+                        router.push("/auth");
+                        return;
+                      }
                       alert("This property owner cannot be contacted at the moment (Missing owner details).");
                       return;
                     }
-                    const event = new CustomEvent('open-chat', {
-                      detail: {
-                        contact: {
-                          propertyId: property.id,
-                          propertyTitle: property.title,
-                          sellerId,
-                          sellerName: property.contactName || "Property Owner",
-                          phone: property.phone || "+91-9876543210",
-                        },
-                        message: `Hi, I'm interested in ${property.title}`
-                      }
-                    });
-                    window.dispatchEvent(event);
+
+                    const buyerName = user.displayName || "Buyer";
+                    const sellerName = property.contactName || (property as any).sellerName || "Property Owner";
+                    const message = `Hi, I'm interested in ${property.title}`;
+                    
+                    // Create chat ID using Flutter-compatible logic (sorted UIDs)
+                    const [uid1, uid2] = [user.uid, sellerId].sort();
+                    const chatId = `${property.id}_${uid1}_${uid2}`;
+
+                    try {
+                      await runTransaction(db, async (transaction) => {
+                        // Use the correct collection path: property_All/main/chats
+                        const chatRef = doc(db, "property_All", "main", "chats", chatId);
+                        const chatDoc = await transaction.get(chatRef);
+
+                        if (!chatDoc.exists()) {
+                          transaction.set(chatRef, {
+                            chatId,
+                            propertyId: property.id,
+                            propertyName: property.title,
+                            users: [user.uid, sellerId],
+                            userNames: {
+                              [user.uid]: buyerName,
+                              [sellerId]: sellerName
+                            },
+                            lastMessage: message,
+                            lastSenderId: user.uid,
+                            lastUpdated: serverTimestamp(),
+                            unreadCounts: {
+                              [user.uid]: 0,
+                              [sellerId]: 1
+                            },
+                            // Add fields to match the screenshot structure for better compatibility
+                            buyerId: user.uid,
+                            buyerName: buyerName,
+                            sellerId: sellerId,
+                            sellerName: sellerName,
+                            participants: [user.uid, sellerId]
+                          });
+
+                          // Also create the first message in the subcollection
+                          const messageRef = doc(collection(db, "property_All", "main", "chats", chatId, "messages"));
+                          transaction.set(messageRef, {
+                            text: message,
+                            senderId: user.uid,
+                            senderName: buyerName,
+                            createdAt: serverTimestamp()
+                          });
+                        }
+                      });
+
+                      openChat(chatId);
+                    } catch (error) {
+                      console.error("Error creating chat:", error);
+                      alert("Failed to start chat. Please try again.");
+                    }
                   }}
                   className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center"
                 >
@@ -438,7 +493,7 @@ export default function PropertyDetails() {
           </div>
         </div>
       </div>
-      <FloatingSMSWidget />
+      
     </div>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { collection, query, orderBy, getDocs, where } from "firebase/firestore";
+import { useSearchParams, useRouter } from "next/navigation";
+import { collection, query, orderBy, getDocs, where, doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 
 interface Property {
   id: string;
@@ -19,32 +20,63 @@ interface Property {
 
 function PropertySearchContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user } = useAuth();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState({
     location: searchParams.get('location') || '',
     date: searchParams.get('date') || '',
     type: searchParams.get('type') || 'rent',
   });
 
+  const normalizeType = (value: unknown) => {
+    const v = String(value || "").toLowerCase();
+    if (!v) return "";
+    if (v.includes("rent")) return "rent";
+    if (v.includes("sell")) return "sell";
+    if (v.includes("sale") || v.includes("buy")) return "buy";
+    return v;
+  };
+
+  useEffect(() => {
+    setFilters({
+      location: searchParams.get('location') || '',
+      date: searchParams.get('date') || '',
+      type: searchParams.get('type') || 'rent',
+    });
+  }, [searchParams]);
+
   useEffect(() => {
     const fetchProperties = async () => {
       try {
         setLoading(true);
         
-        let q = query(collection(db, "properties"), orderBy("createdAt", "desc"));
+        // Using "property_All/main/properties" collection
+        let q = query(collection(db, "property_All", "main", "properties"), orderBy("createdAt", "desc"));
         
         // Add location filter if specified
         if (filters.location) {
           // This is a simple contains search - in production you'd want more sophisticated location matching
-          q = query(collection(db, "properties"), where("location", ">=", filters.location));
+          q = query(collection(db, "property_All", "main", "properties"), where("location", ">=", filters.location));
         }
 
         const snapshot = await getDocs(q);
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Property[];
+        const data = snapshot.docs.map((doc) => {
+          const d = doc.data() as any;
+          return {
+            id: doc.id,
+            title: d.title || d.name || "Property",
+            location: d.location || d.address || "",
+            price: Number(d.price || d.rent || d.cost || 0),
+            images: Array.isArray(d.images) ? d.images : (d.image ? [d.image] : []),
+            bedrooms: Number(d.bedrooms || d.beds || 0),
+            bathrooms: Number(d.bathrooms || d.baths || 0),
+            area: String(d.area || d.sqft || ""),
+            type: d.type || d.listingType || d.propertyType || "",
+          } as Property;
+        });
 
         setProperties(data);
       } catch (error) {
@@ -57,6 +89,59 @@ function PropertySearchContent() {
     fetchProperties();
   }, [filters]);
 
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (!user) {
+        setFavorites(new Set());
+        return;
+      }
+      try {
+        const q = collection(db, "property_All", "main", "users", user.uid, "favorite");
+        const snapshot = await getDocs(q);
+        const favIds = new Set(snapshot.docs.map(doc => doc.id));
+        setFavorites(favIds);
+      } catch (error) {
+        console.error("Error fetching favorites:", error);
+      }
+    };
+
+    fetchFavorites();
+  }, [user]);
+
+  const toggleFavorite = async (e: React.MouseEvent, propertyId: string) => {
+    e.stopPropagation(); // Prevent navigating to property detail
+    if (!user) {
+      router.push("/auth");
+      return;
+    }
+
+    try {
+      const isFavorite = favorites.has(propertyId);
+      const favRef = doc(db, "property_All", "main", "users", user.uid, "favorite", propertyId);
+
+      if (isFavorite) {
+        await deleteDoc(favRef);
+        setFavorites(prev => {
+          const next = new Set(prev);
+          next.delete(propertyId);
+          return next;
+        });
+      } else {
+        await setDoc(favRef, {
+          propertyId: propertyId,
+          addedAt: new Date().toISOString()
+        });
+        setFavorites(prev => {
+          const next = new Set(prev);
+          next.add(propertyId);
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+    }
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -65,10 +150,17 @@ function PropertySearchContent() {
     }).format(price);
   };
 
+  const visibleProperties = properties.filter((p) => {
+    const matchesType = normalizeType(p.type) === normalizeType(filters.type);
+    if (!matchesType) return false;
+    if (!filters.location) return true;
+    return String(p.location || "").toLowerCase().includes(filters.location.toLowerCase());
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
@@ -80,7 +172,7 @@ function PropertySearchContent() {
               </p>
             </div>
             <button
-              onClick={() => window.history.back()}
+              onClick={() => router.push("/home")}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
             >
               Back to Home
@@ -90,7 +182,7 @@ function PropertySearchContent() {
       </div>
 
       {/* Search Filters */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -147,16 +239,16 @@ function PropertySearchContent() {
               </div>
             ))}
           </div>
-        ) : properties.length > 0 ? (
+        ) : visibleProperties.length > 0 ? (
           <>
             <div className="mb-6">
               <p className="text-gray-600">
-                Found {properties.length} properties
+                Found {visibleProperties.length} properties
               </p>
             </div>
             
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {properties.map((property) => (
+              {visibleProperties.map((property) => (
                 <div
                   key={property.id}
                   className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer overflow-hidden"
@@ -171,6 +263,25 @@ function PropertySearchContent() {
                     <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium">
                       {filters.type.toUpperCase()}
                     </div>
+                    <button
+                      onClick={(e) => toggleFavorite(e, property.id)}
+                      className="absolute top-3 right-3 p-2 rounded-full bg-white/80 hover:bg-white transition-colors shadow-sm z-10"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className={`h-5 w-5 ${favorites.has(property.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                        />
+                      </svg>
+                    </button>
                   </div>
                   
                   <div className="p-4">

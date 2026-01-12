@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, where, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, getDoc, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 interface Property {
   id: string;
@@ -30,11 +31,7 @@ export default function MyProperties() {
   const [favoriteProperties, setFavoriteProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-
-  // Get user ID (you might want to implement proper auth)
-  const getUserId = () => {
-    return localStorage.getItem('userId') || 'guest-user';
-  };
+  const { user } = useAuth();
 
   const formatPrice = (property: Property) => {
     const price = property.price || property.rent || property.cost || 25000;
@@ -43,70 +40,63 @@ export default function MyProperties() {
   };
 
   useEffect(() => {
-    fetchFavoriteProperties();
-  }, []);
+    if (!user || user.isAnonymous) {
+       setLoading(false);
+       if (user?.isAnonymous) router.push("/auth");
+       return;
+    }
 
-  const fetchFavoriteProperties = async () => {
-    try {
-      setLoading(true);
-      const userId = getUserId();
-      
-      // Fetch favorite property IDs for this user
-      const favoritesQuery = query(
-        collection(db, "favorites"),
-        where("userId", "==", userId)
-      );
-      const favoritesSnapshot = await getDocs(favoritesQuery);
-      
-      if (favoritesSnapshot.empty) {
+    setLoading(true);
+    // Listen to the 'favorites' collection in real-time
+    const favoritesQuery = collection(db, "property_All", "main", "users", user.uid, "favorites");
+    
+    const unsubscribe = onSnapshot(favoritesQuery, async (snapshot) => {
+      if (snapshot.empty) {
         setFavoriteProperties([]);
+        setLoading(false);
         return;
       }
 
-      // Get property IDs
-      const propertyIds = favoritesSnapshot.docs.map(doc => doc.data().propertyId);
+      const propertyIds = snapshot.docs.map(doc => doc.id);
       
-      // Fetch all properties
-      const propertiesSnapshot = await getDocs(collection(db, "properties"));
-      const allProperties = propertiesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      try {
+        const propertyPromises = propertyIds.map(async (id) => {
+            try {
+                const propRef = doc(db, "property_All", "main", "properties", id);
+                const propSnap = await getDoc(propRef);
+                if (propSnap.exists()) {
+                    return { id: propSnap.id, ...propSnap.data() } as Property;
+                }
+                return null;
+            } catch (err) {
+                console.error(`Error fetching property ${id}:`, err);
+                return null;
+            }
+        });
 
-      // Filter properties that are in favorites
-      const favoriteProps = allProperties.filter(prop => propertyIds.includes(prop.id));
-      
-      setFavoriteProperties(favoriteProps);
-    } catch (error) {
-      console.error("Error fetching favorite properties:", error);
-    } finally {
+        const properties = await Promise.all(propertyPromises);
+        setFavoriteProperties(properties.filter((p): p is Property => p !== null));
+      } catch (error) {
+        console.error("Error processing favorites:", error);
+      } finally {
+        setLoading(false);
+      }
+    }, (error) => {
+      console.error("Error listening to favorites:", error);
       setLoading(false);
-    }
-  };
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   const removeFromFavorites = async (propertyId: string) => {
+    if (!user) return;
     try {
-      const userId = getUserId();
-      
-      // Find and delete the favorite record
-      const favoritesQuery = query(
-        collection(db, "favorites"),
-        where("userId", "==", userId),
-        where("propertyId", "==", propertyId)
-      );
-      const snapshot = await getDocs(favoritesQuery);
-      
-      snapshot.docs.forEach(async (docRef) => {
-        await deleteDoc(doc(db, "favorites", docRef.id));
-      });
-
-      // Update local state
-      setFavoriteProperties(prev => prev.filter(prop => prop.id !== propertyId));
-      
-      alert("Property removed from favorites!");
+      // Delete the favorite record from 'favorites' collection
+      await deleteDoc(doc(db, "property_All", "main", "users", user.uid, "favorites", propertyId));
+      // State update is handled by onSnapshot
     } catch (error) {
-      console.error("Error removing from favorites:", error);
-      alert("Error removing property from favorites");
+      console.error("Error removing favorite:", error);
     }
   };
 
@@ -163,7 +153,8 @@ export default function MyProperties() {
             {favoriteProperties.map((property) => (
               <div 
                 key={property.id} 
-                className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden"
+                onClick={() => router.push(`/property/${property.id}`)}
+                className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden cursor-pointer"
               >
                 <div className="relative">
                   <img
@@ -182,7 +173,10 @@ export default function MyProperties() {
                   
                   {/* Remove from Favorites */}
                   <button 
-                    onClick={() => removeFromFavorites(property.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFromFavorites(property.id);
+                    }}
                     className="absolute top-3 right-3 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors shadow-sm"
                   >
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -238,12 +232,6 @@ export default function MyProperties() {
                       </svg>
                       {property.phone || property.contact || "+91-9876543210"}
                     </div>
-                    <button 
-                      onClick={() => router.push(`/property/${property.id}`)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                    >
-                      View Details
-                    </button>
                   </div>
                 </div>
               </div>

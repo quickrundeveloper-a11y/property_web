@@ -126,6 +126,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
   
   useEffect(() => {
     if (!mapsReady || !mapContainerRef.current) return;
+    if (mapRef.current) return;
     // Initialize map
     const center = {
       lat: formData.locationLat ?? 19.0760,
@@ -257,7 +258,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
 
       const uploadImage = async (file: File) => {
         const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name}`;
-        const storageRef = ref(storage, `properties/${unique}`);
+        const storageRef = ref(storage, `property_image/all_images/${unique}`);
         const toUpload = await compressImage(file);
         return new Promise<string | null>(async (resolve) => {
           try {
@@ -319,7 +320,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       }
 
       // Add to Firestore
-      await addDoc(collection(db, "properties"), {
+      await addDoc(collection(db, "property_All", "main", "properties"), {
         ...formData,
         sellerId,
         price: Number(formData.price),
@@ -431,18 +432,15 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         <div className="md:col-span-1">
           <label className="block text-sm mb-1 text-white/80">Location</label>
           {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
-            <>
-              <input
-                ref={autocompleteInputRef}
-                type="text"
-                required
-                className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
-                defaultValue={formData.location}
-                onChange={e => setFormData({ ...formData, location: e.target.value })}
-                placeholder="Search location"
-              />
-              <div ref={mapContainerRef} className="mt-3 w-full h-64 rounded-lg overflow-hidden border border-white/30"></div>
-            </>
+            <input
+              ref={autocompleteInputRef}
+              type="text"
+              required
+              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+              defaultValue={formData.location}
+              onChange={e => setFormData({ ...formData, location: e.target.value })}
+              placeholder="Search location"
+            />
           ) : (
             <input
               type="text"
@@ -465,6 +463,12 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
             placeholder="Amount"
           />
         </div>
+
+        {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+          <div className="col-span-1 md:col-span-2">
+            <div ref={mapContainerRef} className="mt-3 w-full h-80 rounded-lg overflow-hidden border border-white/30"></div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-4">
