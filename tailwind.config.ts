@@ -9,8 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        lexend: ['var(--font-lexend)', 'system-ui', 'sans-serif'],
-        sans: ['var(--font-lexend)', 'system-ui', 'sans-serif'], // Make Lexend the default sans font
+        sans: ['system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
         background: 'var(--background)',

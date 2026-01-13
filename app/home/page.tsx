@@ -277,7 +277,7 @@ export default function Home() {
       return;
     }
     try {
-      const favoritesQuery = collection(db, "property_All", "main", "users", user.uid, "favorite");
+      const favoritesQuery = collection(db, "property_All", "main", "users", user.uid, "favorites");
       const snapshot = await getDocs(favoritesQuery);
       const favoriteIds = new Set(snapshot.docs.map(doc => doc.id));
       setFavoriteProperties(favoriteIds);
@@ -307,13 +307,14 @@ export default function Home() {
     try {
       if (isFavorite) {
         // Remove from favorites
-        await deleteDoc(doc(db, "property_All", "main", "users", user.uid, "favorite", propertyId));
+        await deleteDoc(doc(db, "property_All", "main", "users", user.uid, "favorites", propertyId));
         console.log(`Removed property ${propertyId} from Firebase favorites`);
       } else {
         // Add to favorites
         await setDoc(doc(db, "property_All", "main", "users", user.uid, "favorites", propertyId), {
           propertyId: propertyId,
-          addedAt: new Date().toISOString()
+          userId: user.uid,
+          createdAt: serverTimestamp()
         });
         console.log(`Added property ${propertyId} to Firebase favorites`);
       }
@@ -1055,7 +1056,7 @@ export default function Home() {
           </div>
           
           <p className="text-gray-500 text-sm">
-            Join <span className="font-semibold">10,000+</span> other landlords in our hommie community.
+            Join <span className="font-semibold">10,000+</span> other landlords in our Primenivaas community.
           </p>
         </div>
       </section>

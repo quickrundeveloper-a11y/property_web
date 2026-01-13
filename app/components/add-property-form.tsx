@@ -32,8 +32,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
   const [formData, setFormData] = useState({
     title: "",
     location: "",
-    locationLat: null as number | null,
-    locationLng: null as number | null,
+    lat: null as number | null,
+    lng: null as number | null,
     price: "",
     bedrooms: "",
     bathrooms: "",
@@ -41,12 +41,11 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
     units: "sqft",
     features: [] as string[],
     description: "",
-    contactName: "",
+    OwnerName: "",
     phone: "",
     email: "",
     type: defaultType,
-    propertyCategory: "apartment",
-    rentFrequency: "per_month" as "per_month" | "per_year"
+    propertyCategory: "apartment"
   });
   const [images, setImages] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -129,8 +128,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
     if (mapRef.current) return;
     // Initialize map
     const center = {
-      lat: formData.locationLat ?? 19.0760,
-      lng: formData.locationLng ?? 72.8777
+      lat: formData.lat ?? 19.0760,
+      lng: formData.lng ?? 72.8777
     };
     const googleObj = (window as unknown as {
       google?: {
@@ -170,7 +169,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         markerRef.current.position = { lat, lng };
       }
       mapRef.current?.panTo({ lat, lng });
-      setFormData(prev => ({ ...prev, locationLat: lat, locationLng: lng }));
+      setFormData(prev => ({ ...prev, lat, lng }));
       try {
         const geocode = await geocoderRef.current!.geocode({ location: { lat, lng } });
         const address = geocode.results?.[0]?.formatted_address;
@@ -191,7 +190,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       if (!evt.latLng) return;
       const lat = evt.latLng.lat();
       const lng = evt.latLng.lng();
-      setFormData(prev => ({ ...prev, locationLat: lat, locationLng: lng }));
+      setFormData(prev => ({ ...prev, lat, lng }));
       try {
         const geocode = await geocoderRef.current!.geocode({ location: { lat, lng } });
         const address = geocode.results?.[0]?.formatted_address;
@@ -221,7 +220,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
           mapRef.current?.panTo({ lat, lng });
           mapRef.current?.setZoom(14);
           if (markerRef.current?.setPosition) markerRef.current.setPosition({ lat, lng });
-          setFormData(prev => ({ ...prev, location: address, locationLat: lat, locationLng: lng }));
+          setFormData(prev => ({ ...prev, location: address, lat, lng }));
         } else {
           setFormData(prev => ({ ...prev, location: address }));
         }
@@ -312,28 +311,38 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         })
       );
       const imageUrls = results;
-      const validUrls = imageUrls.filter((u): u is string => !!u);
+      // Ensure unique, non-empty URLs
+      const validUrls = Array.from(new Set(imageUrls.filter((u): u is string => !!u)));
 
       // Allow property creation even if no images uploaded (use placeholder)
       if (validUrls.length === 0) {
         validUrls.push("https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80");
       }
 
-      // Add to Firestore
-      await addDoc(collection(db, "property_All", "main", "properties"), {
-        ...formData,
-        sellerId,
+      // Add to Firestore with standardized fields only
+      const payload = {
+        title: formData.title,
+        location: formData.location,
+        lat: formData.lat ?? null,
+        lng: formData.lng ?? null,
         price: Number(formData.price),
         bedrooms: Number(formData.bedrooms),
         bathrooms: Number(formData.bathrooms),
+        area: formData.area,
+        units: formData.units,
+        features: formData.features,
+        description: formData.description,
+        OwnerName: formData.OwnerName,
+        phone: formData.phone,
+        email: formData.email,
+        type: formData.type,
+        propertyCategory: formData.propertyCategory,
         images: validUrls,
-        image: validUrls[0],
-        createdAt: serverTimestamp(),
-        status: "active",
-        locationLat: formData.locationLat ?? null,
-        locationLng: formData.locationLng ?? null,
-        rentFrequency: formData.type === "rent" ? formData.rentFrequency : null
-      });
+        sellerId,
+        status: "active" as const,
+        createdAt: serverTimestamp()
+      };
+      await addDoc(collection(db, "property_All", "main", "properties"), payload);
 
       alert("Property listed successfully!");
       if (onSuccess) onSuccess();
@@ -342,8 +351,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       setFormData({
         title: "",
         location: "",
-        locationLat: null,
-        locationLng: null,
+        lat: null,
+        lng: null,
         price: "",
         bedrooms: "",
         bathrooms: "",
@@ -351,12 +360,11 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         units: "sqft",
         features: [],
         description: "",
-        contactName: "",
+        OwnerName: "",
         phone: "",
         email: "",
         type: defaultType,
-        propertyCategory: "apartment",
-        rentFrequency: "per_month"
+        propertyCategory: "apartment"
       });
       setImages([]);
 
@@ -399,22 +407,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         </div>
       </div>
       
-      {formData.type === "rent" && (
-        <div className="mb-4">
-          <label className="block text-sm mb-1 text-white/80">Rent Time</label>
-          <select
-            className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 text-white [&>option]:text-black"
-            value={formData.rentFrequency}
-            onChange={e => setFormData({ ...formData, rentFrequency: e.target.value as "per_month" | "per_year" })}
-          >
-            <option value="per_month">Per Month</option>
-            <option value="per_year">Per Year</option>
-          </select>
-          {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
-            <p className="text-xs text-white/60 mt-2">To enable map search, set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in environment.</p>
-          )}
-        </div>
-      )}
+      {/* Rent frequency removed as per new standardization */}
 
       <div className="mb-4">
         <label className="block text-sm mb-1 text-white/80">Property Title</label>
@@ -597,13 +590,13 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm mb-1 text-white/80">Contact Name</label>
+          <label className="block text-sm mb-1 text-white/80">Owner Name</label>
           <input
             type="text"
             required
             className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
-            value={formData.contactName}
-            onChange={e => setFormData({...formData, contactName: e.target.value})}
+            value={formData.OwnerName}
+            onChange={e => setFormData({...formData, OwnerName: e.target.value})}
             placeholder="Enter full name"
           />
         </div>

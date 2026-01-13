@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { collection, query, orderBy, getDocs, where, doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
+import { collection, query, orderBy, getDocs, where, doc, setDoc, deleteDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 
@@ -96,7 +96,7 @@ function PropertySearchContent() {
         return;
       }
       try {
-        const q = collection(db, "property_All", "main", "users", user.uid, "favorite");
+        const q = collection(db, "property_All", "main", "users", user.uid, "favorites");
         const snapshot = await getDocs(q);
         const favIds = new Set(snapshot.docs.map(doc => doc.id));
         setFavorites(favIds);
@@ -117,7 +117,7 @@ function PropertySearchContent() {
 
     try {
       const isFavorite = favorites.has(propertyId);
-      const favRef = doc(db, "property_All", "main", "users", user.uid, "favorite", propertyId);
+      const favRef = doc(db, "property_All", "main", "users", user.uid, "favorites", propertyId);
 
       if (isFavorite) {
         await deleteDoc(favRef);
@@ -129,7 +129,8 @@ function PropertySearchContent() {
       } else {
         await setDoc(favRef, {
           propertyId: propertyId,
-          addedAt: new Date().toISOString()
+          userId: user.uid,
+          createdAt: serverTimestamp()
         });
         setFavorites(prev => {
           const next = new Set(prev);

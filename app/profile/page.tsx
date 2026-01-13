@@ -246,7 +246,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="ml-3 text-sm">
                   <label htmlFor="agree" className="font-medium text-gray-700 leading-relaxed">
-                    I agree to be contacted by Hommie for similar properties or related services via WhatsApp, phone (overriding NDNC registration), sms, e-mail etc.
+                    I agree to be contacted by Primenivaas for similar properties or related services via WhatsApp, phone (overriding NDNC registration), sms, e-mail etc.
                   </label>
                 </div>
               </div>

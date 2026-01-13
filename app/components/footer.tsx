@@ -4,80 +4,20 @@ export default function Footer() {
   return (
     <footer className="bg-gray-100 py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           {/* Logo */}
           <div className="col-span-1 sm:col-span-2 lg:col-span-1">
             <Link href="/" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">🏠</span>
               </div>
-              <span className="text-gray-900 font-bold text-xl">Hommie</span>
+              <span className="text-gray-900 font-bold text-xl">Primenivaas</span>
             </Link>
           </div>
 
-          {/* Sell a Home */}
+          {/* Terms & Privacy */}
           <div className="col-span-1">
-            <h3 className="text-gray-900 font-semibold text-lg mb-6">SELL A HOME</h3>
-            <ul className="space-y-4">
-              <li>
-                <Link href="/sell/request-offer" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Request an offer
-                </Link>
-              </li>
-              <li>
-                <Link href="/sell/pricing" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link href="/sell/reviews" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Reviews
-                </Link>
-              </li>
-              <li>
-                <Link href="/sell/stories" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Stories
-                </Link>
-              </li>
-            </ul>
-
-            <h3 className="text-gray-900 font-semibold text-lg mb-6 mt-12">BUY A HOME</h3>
-            <ul className="space-y-4">
-              <li>
-                <Link href="/buy" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Buy
-                </Link>
-              </li>
-              <li>
-                <Link href="/buy/finance" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Finance
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Buy, Rent and Sell */}
-          <div className="col-span-1">
-            <h3 className="text-gray-900 font-semibold text-lg mb-6">BUY, RENT AND SELL</h3>
-            <ul className="space-y-4">
-              <li>
-                <Link href="/properties" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Buy and sell properties
-                </Link>
-              </li>
-              <li>
-                <Link href="/rent" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Rent home
-                </Link>
-              </li>
-              <li>
-                <Link href="/builder-trade-up" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Builder trade-up
-                </Link>
-              </li>
-            </ul>
-
-            <h3 className="text-gray-900 font-semibold text-lg mb-6 mt-12">TERMS & PRIVACY</h3>
+            <h3 className="text-gray-900 font-semibold text-lg mb-6">TERMS & PRIVACY</h3>
             <ul className="space-y-4">
               <li>
                 <Link href="/trust-safety" className="text-gray-600 hover:text-gray-900 transition-colors">
@@ -86,7 +26,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/terms" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Terms of Service
+                  Terms & Conditions
                 </Link>
               </li>
               <li>
@@ -146,6 +86,11 @@ export default function Footer() {
               <li>
                 <Link href="/help" className="text-gray-600 hover:text-gray-900 transition-colors">
                   Help Center
+                </Link>
+              </li>
+              <li>
+                <Link href="/sitemap" className="text-gray-600 hover:text-gray-900 transition-colors">
+                  Sitemap
                 </Link>
               </li>
             </ul>

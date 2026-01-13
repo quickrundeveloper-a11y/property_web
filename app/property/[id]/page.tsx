@@ -396,7 +396,7 @@ export default function PropertyDetails() {
                     }
 
                     const buyerName = user.displayName || "Buyer";
-                    const sellerName = property.contactName || (property as any).sellerName || "Property Owner";
+                    const sellerName = (property as any).OwnerName || property.contactName || (property as any).sellerName || "Property Owner";
                     const message = `Hi, I'm interested in ${property.title}`;
                     
                     // Create chat ID using Flutter-compatible logic (sorted UIDs)

@@ -352,7 +352,7 @@ function AuthPageContent() {
 
         {/* Header */}
         <h2 className="text-2xl font-semibold mb-2 text-center text-gray-900">
-          {authState.mode === 'login' ? 'Log in to Hommie' : 'Create your account'}
+          {authState.mode === 'login' ? 'Log in to Primenivaas' : 'Create your account'}
         </h2>
 
         <p className="text-sm text-gray-500 mb-6 text-center">

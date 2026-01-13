@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useChat } from '@/app/context/ChatContext';
@@ -16,6 +16,29 @@ export default function Header() {
   const { user, logout, loading } = useAuth();
   const { openChat } = useChat();
   const [profileName, setProfileName] = useState<string | null>(null);
+
+  const managePropertyRef = useRef<HTMLDivElement>(null);
+  const resourcesRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (managePropertyRef.current && !managePropertyRef.current.contains(event.target as Node)) {
+        setIsManagePropertyOpen(false);
+      }
+      if (resourcesRef.current && !resourcesRef.current.contains(event.target as Node)) {
+        setIsResourcesOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -71,7 +94,7 @@ export default function Header() {
               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
                 <span className="text-blue-600 font-bold text-lg">🏠</span>
               </div>
-              <span className="text-white font-bold text-xl">Hommie</span>
+              <span className="text-white font-bold text-xl">Primenivaas</span>
             </Link>
           </div>
 
@@ -88,7 +111,7 @@ export default function Header() {
             </Link>
             
             {/* Manage Property Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={managePropertyRef}>
               <button
                 onClick={() => {
                   setIsManagePropertyOpen(!isManagePropertyOpen);
@@ -115,7 +138,7 @@ export default function Header() {
             </div>
 
             {/* Resources Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={resourcesRef}>
               <button
                 onClick={() => {
                   setIsResourcesOpen(!isResourcesOpen);
@@ -151,7 +174,7 @@ export default function Header() {
               <div className="w-8 h-8 animate-pulse bg-white/20 rounded-full"></div>
             ) : user && !user.isAnonymous ? (
               /* User Avatar Dropdown */
-              <div className="relative">
+              <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => {
                     setIsUserMenuOpen(!isUserMenuOpen);
