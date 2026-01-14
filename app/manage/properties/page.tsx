@@ -25,6 +25,7 @@ interface Property {
   sqft?: string | number;
   phone?: string;
   contact?: string;
+  priceUnit?: string;
 }
 
 export default function MyProperties() {
@@ -37,6 +38,13 @@ export default function MyProperties() {
     const price = property.price || property.rent || property.cost || 25000;
     const numPrice = typeof price === 'string' ? parseInt(price.replace(/[^\d]/g, '')) : Number(price);
     return isNaN(numPrice) ? 25000 : numPrice;
+  };
+
+  const getPriceSuffix = (property: Property) => {
+    const unit = String(property.priceUnit || '').toLowerCase();
+    if (unit === 'per_year') return '/year';
+    if (unit === 'per_sqft') return '/sq ft';
+    return '/month';
   };
 
   useEffect(() => {
@@ -189,7 +197,7 @@ export default function MyProperties() {
                   <div className="mb-3">
                     <p className="text-blue-600 font-bold text-lg">
                       ₹{formatPrice(property).toLocaleString("en-IN")}
-                      <span className="text-gray-400 text-sm font-normal">/month</span>
+                      <span className="text-gray-400 text-sm font-normal">{getPriceSuffix(property)}</span>
                     </p>
                   </div>
                   

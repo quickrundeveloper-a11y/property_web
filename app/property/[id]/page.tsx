@@ -31,6 +31,7 @@ interface Property {
   sellerId?: string | null;
   contactName?: string;
   contact?: string;
+  priceUnit?: string;
 }
 
 export default function PropertyDetails() {
@@ -182,6 +183,13 @@ export default function PropertyDetails() {
 
   const allImages = property.images || [property.image];
 
+  const getPriceSuffix = () => {
+    const unit = String(property.priceUnit || '').toLowerCase();
+    if (unit === 'per_year') return '/year';
+    if (unit === 'per_sqft') return '/sq ft';
+    return '/month';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -211,7 +219,7 @@ export default function PropertyDetails() {
               <div className="text-3xl font-bold text-slate-700">
                 ₹{property.price?.toLocaleString('en-IN')}
               </div>
-              <div className="text-gray-500">/month</div>
+              <div className="text-gray-500">{getPriceSuffix()}</div>
             </div>
           </div>
         </div>

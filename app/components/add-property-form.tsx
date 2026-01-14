@@ -38,6 +38,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
     bedrooms: "",
     bathrooms: "",
     area: "",
+    priceUnit: "per_month",
     units: "sqft",
     features: [] as string[],
     description: "",
@@ -331,6 +332,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         lat: formData.lat ?? null,
         lng: formData.lng ?? null,
         price: Number(formData.price),
+        priceUnit: formData.priceUnit,
         bedrooms: Number(formData.bedrooms),
         bathrooms: Number(formData.bathrooms),
         area: formData.area,
@@ -362,6 +364,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         bedrooms: "",
         bathrooms: "",
         area: "",
+        priceUnit: "per_month",
         units: "sqft",
         features: [],
         description: "",
@@ -452,14 +455,25 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         </div>
         <div>
           <label className="block text-sm mb-1 text-white/80">Price</label>
-          <input
-            type="number"
-            required
-            className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
-            value={formData.price}
-            onChange={e => setFormData({...formData, price: e.target.value})}
-            placeholder="Amount"
-          />
+          <div className="grid grid-cols-[2fr,1fr] gap-2">
+            <input
+              type="number"
+              required
+              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+              value={formData.price}
+              onChange={e => setFormData({...formData, price: e.target.value})}
+              placeholder="Amount"
+            />
+            <select
+              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 text-white [&>option]:text-black"
+              value={formData.priceUnit}
+              onChange={e => setFormData({...formData, priceUnit: e.target.value})}
+            >
+              <option value="per_month">Per Month</option>
+              <option value="per_year">Per Year</option>
+              <option value="per_sqft">Per Sq Ft</option>
+            </select>
+          </div>
         </div>
 
         {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (

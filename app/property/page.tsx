@@ -16,6 +16,7 @@ interface Property {
   bathrooms: number;
   area: string;
   type: string;
+  priceUnit?: string;
 }
 
 function PropertySearchContent() {
@@ -87,6 +88,7 @@ function PropertySearchContent() {
             bathrooms: Number(d.bathrooms || d.baths || 0),
             area: String(d.area || d.sqft || ""),
             type: d.type || d.listingType || d.propertyType || "",
+            priceUnit: d.priceUnit || d.price_unit || "",
           } as Property;
         });
 
@@ -161,6 +163,14 @@ function PropertySearchContent() {
       currency: 'INR',
       maximumFractionDigits: 0,
     }).format(price);
+  };
+
+  const getPriceSuffix = (p: Property) => {
+    const unit = String(p.priceUnit || '').toLowerCase();
+    if (unit === 'per_year') return '/year';
+    if (unit === 'per_sqft') return '/sq ft';
+    if (normalizeType(p.type) === 'rent') return '/month';
+    return '';
   };
 
   const visibleProperties = properties.filter((p) => {
@@ -327,12 +337,12 @@ function PropertySearchContent() {
                   
                   <div className="p-4">
                     <div className="mb-3">
-                      <p className="text-blue-600 font-bold text-lg">
+                  <p className="text-blue-600 font-bold text-lg">
                         {formatPrice(property.price || 2500000)}
                         <span className="text-gray-400 text-sm font-normal">
-                          {filters.type === 'rent' ? '/month' : ''}
+                          {getPriceSuffix(property)}
                         </span>
-                      </p>
+                  </p>
                     </div>
                     
                     <h3 className="font-semibold text-gray-900 text-base mb-2">

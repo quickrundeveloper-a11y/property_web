@@ -375,6 +375,7 @@ export default function Home() {
           bedrooms: docData.bedrooms || docData.beds || 3,
           bathrooms: docData.bathrooms || docData.baths || 2,
           area: docData.area || docData.sqft || '5x7',
+          priceUnit: docData.priceUnit || docData.price_unit || 'per_month',
           phone: docData.phone || docData.contact || '+91-9876543210',
           images: Array.isArray(docData.images) ? docData.images : (docData.image ? [docData.image] : []),
           image: docData.images?.[0] || docData.image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
@@ -407,6 +408,13 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getPriceSuffix = (item: any) => {
+    const unit = String(item?.priceUnit || '').toLowerCase();
+    if (unit === 'per_year') return '/year';
+    if (unit === 'per_sqft') return '/sq ft';
+    return '/month';
   };
 
   useEffect(() => {
@@ -875,7 +883,7 @@ export default function Home() {
                   <div className="mb-3">
                     <p className="text-blue-600 font-bold text-lg">
                       ₹{formatPrice(property).toLocaleString("en-IN")}
-                      <span className="text-gray-400 text-sm font-normal">/month</span>
+                      <span className="text-gray-400 text-sm font-normal">{getPriceSuffix(property)}</span>
                     </p>
                   </div>
                   
