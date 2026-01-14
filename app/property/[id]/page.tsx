@@ -15,6 +15,7 @@ interface Property {
   beds: number;
   baths: number;
   size: string;
+   propertyCategory?: string;
   amenities?: string[];
   features: string[];
   phone?: string;
@@ -190,6 +191,8 @@ export default function PropertyDetails() {
     return '/month';
   };
 
+  const isLand = String(property.propertyCategory || "").toLowerCase() === "land";
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -277,14 +280,18 @@ export default function PropertyDetails() {
               
               {/* Basic Info */}
               <div className="grid grid-cols-3 gap-2 md:gap-6 mb-8">
+                {!isLand && (
                 <div className="text-center p-2 md:p-4 bg-gray-50 rounded-lg">
                   <div className="text-lg md:text-2xl font-bold text-slate-700">{property.beds || 4}</div>
                   <div className="text-gray-600 text-xs md:text-sm">Bedrooms</div>
                 </div>
+                )}
+                {!isLand && (
                 <div className="text-center p-2 md:p-4 bg-gray-50 rounded-lg">
                   <div className="text-lg md:text-2xl font-bold text-slate-700">{property.baths || 3}</div>
                   <div className="text-gray-600 text-xs md:text-sm">Bathrooms</div>
                 </div>
+                )}
                 <div className="text-center p-2 md:p-4 bg-gray-50 rounded-lg">
                   <div className="text-lg md:text-2xl font-bold text-slate-700">{property.size || "2500"}</div>
                   <div className="text-gray-600 text-xs md:text-sm">Sq Ft</div>
