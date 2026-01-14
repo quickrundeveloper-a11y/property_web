@@ -30,6 +30,13 @@ function PropertySearchContent() {
     date: searchParams.get('date') || '',
     type: searchParams.get('type') || 'rent',
   });
+  const [isTypeOpen, setIsTypeOpen] = useState(false);
+
+  const typeOptions = [
+    { value: "rent", label: "For Rent" },
+    { value: "buy", label: "For Sale" },
+    { value: "sell", label: "Sell Property" },
+  ];
 
   const normalizeType = (value: unknown) => {
     const v = String(value || "").toLowerCase();
@@ -40,12 +47,17 @@ function PropertySearchContent() {
     return v;
   };
 
+  const currentTypeLabel =
+    typeOptions.find((option) => option.value === normalizeType(filters.type))?.label ||
+    "Select property type";
+
   useEffect(() => {
     setFilters({
       location: searchParams.get('location') || '',
       date: searchParams.get('date') || '',
       type: searchParams.get('type') || 'rent',
     });
+    setIsTypeOpen(false);
   }, [searchParams]);
 
   useEffect(() => {
@@ -196,17 +208,45 @@ function PropertySearchContent() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Property Type</label>
-              <select
-                value={filters.type}
-                onChange={(e) => setFilters({...filters, type: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <button
+                type="button"
+                onClick={() => setIsTypeOpen(!isTypeOpen)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="rent">For Rent</option>
-                <option value="buy">For Sale</option>
-                <option value="sell">Sell Property</option>
-              </select>
+                <span className="truncate">{currentTypeLabel}</span>
+                <svg
+                  className="w-4 h-4 ml-2 text-gray-500 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {isTypeOpen && (
+                <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg max-h-60 overflow-y-auto">
+                  {typeOptions.map((option) => {
+                    const selected = normalizeType(filters.type) === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setFilters({ ...filters, type: option.value });
+                          setIsTypeOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm ${
+                          selected ? "bg-blue-50 text-blue-600" : "text-gray-800 hover:bg-gray-100"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Move-in Date</label>

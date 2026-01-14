@@ -780,7 +780,13 @@ export default function Home() {
                       +91-9876543210
                     </div>
                     <div className="flex items-center space-x-2">
-                      <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = "tel:+91-9876543210";
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center"
+                      >
                         <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                         </svg>
@@ -916,7 +922,14 @@ export default function Home() {
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const phoneNumber = property.phone || property.contact || "+91-9876543210";
+                          window.location.href = `tel:${phoneNumber}`;
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center"
+                      >
                         <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                         </svg>

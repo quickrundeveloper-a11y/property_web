@@ -13,6 +13,8 @@ export default function Header() {
   const [isResourcesOpen, setIsResourcesOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileUserOpen, setIsMobileUserOpen] = useState(false);
+  const [isMobileManagePropertyOpen, setIsMobileManagePropertyOpen] = useState(false);
+  const [isMobileResourcesOpen, setIsMobileResourcesOpen] = useState(false);
   const { user, logout, loading } = useAuth();
   const { openChat } = useChat();
   const [profileName, setProfileName] = useState<string | null>(null);
@@ -69,6 +71,8 @@ export default function Header() {
       setIsManagePropertyOpen(false);
       setIsResourcesOpen(false);
       setIsMobileUserOpen(false);
+      setIsMobileManagePropertyOpen(false);
+      setIsMobileResourcesOpen(false);
     };
     window.addEventListener("open-chat", onOpenChat as EventListener);
     return () => {
@@ -275,8 +279,8 @@ export default function Header() {
               <div className="px-3 py-2">
                 <button
                   onClick={() => {
-                    setIsManagePropertyOpen(!isManagePropertyOpen);
-                    setIsResourcesOpen(false);
+                    setIsMobileManagePropertyOpen(!isMobileManagePropertyOpen);
+                    setIsMobileResourcesOpen(false);
                   }}
                   className="text-white hover:text-blue-100 flex items-center justify-between w-full text-base font-medium"
                 >
@@ -285,7 +289,7 @@ export default function Header() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                {isManagePropertyOpen && (
+                {isMobileManagePropertyOpen && (
                   <div className="mt-2 space-y-1 pl-4">
                     <Link href="/manage/dashboard" className="text-blue-100 block py-1" onClick={() => setIsMenuOpen(false)}>
                       Dashboard
@@ -301,8 +305,8 @@ export default function Header() {
               <div className="px-3 py-2">
                 <button
                   onClick={() => {
-                    setIsResourcesOpen(!isResourcesOpen);
-                    setIsManagePropertyOpen(false);
+                    setIsMobileResourcesOpen(!isMobileResourcesOpen);
+                    setIsMobileManagePropertyOpen(false);
                   }}
                   className="text-white hover:text-blue-100 flex items-center justify-between w-full text-base font-medium"
                 >
@@ -311,7 +315,7 @@ export default function Header() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                {isResourcesOpen && (
+                {isMobileResourcesOpen && (
                   <div className="mt-2 space-y-1 pl-4">
                     <Link href="/property?location=Noida" className="text-blue-100 block py-1" onClick={() => setIsMenuOpen(false)}>
                       Noida
