@@ -40,7 +40,7 @@ export default function Home() {
       return;
     }
 
-    const message = `Hi! I'm interested in ${propertyName} located at ${propertyLocation} priced at ₹${price.toLocaleString()}/month. Could you please provide more details about this property?`;
+    const message = `Hi! I'm interested in ${propertyName} located at ${propertyLocation} priced at ₹${price.toLocaleString("en-IN")}/month. Could you please provide more details about this property?`;
 
     // Create chat ID using Flutter-compatible logic (sorted UIDs)
     const [uid1, uid2] = [user.uid, sellerId].sort();
@@ -868,7 +868,7 @@ export default function Home() {
                 <div className="p-4">
                   <div className="mb-3">
                     <p className="text-blue-600 font-bold text-lg">
-                      ₹{formatPrice(property).toLocaleString()}
+                      ₹{formatPrice(property).toLocaleString("en-IN")}
                       <span className="text-gray-400 text-sm font-normal">/month</span>
                     </p>
                   </div>

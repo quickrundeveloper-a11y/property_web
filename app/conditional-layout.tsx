@@ -14,7 +14,10 @@ export default function ConditionalLayout({
   // Don't show header/footer on auth pages
   const isAuthPage = pathname?.startsWith('/auth');
 
-  if (isAuthPage) {
+  // Don't show header/footer on property details pages (they have their own header)
+  const isPropertyDetailsPage = pathname?.startsWith('/property/');
+
+  if (isAuthPage || isPropertyDetailsPage) {
     return <>{children}</>;
   }
 

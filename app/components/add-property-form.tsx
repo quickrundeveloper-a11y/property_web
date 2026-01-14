@@ -57,25 +57,31 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
   const geocoderRef = useRef<GeocoderLike | null>(null);
   const [mapsReady, setMapsReady] = useState(false);
 
-  const compressImage = (file: File): Promise<File> => {
+  const standardizeImage = (file: File, targetWidth = 1200, targetHeight = 900): Promise<File> => {
     return new Promise((resolve) => {
-      if (file.size < 1024 * 1024) {
-        resolve(file);
-        return;
-      }
+      // Always standardize to fixed dimensions using canvas
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const maxWidth = 1600;
-        const scale = Math.min(1, maxWidth / img.width);
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
         const ctx = canvas.getContext("2d");
         if (!ctx) {
           resolve(file);
           return;
         }
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Calculate scaling to cover the target area (like object-cover)
+        const scale = Math.max(targetWidth / img.width, targetHeight / img.height);
+        const scaledWidth = Math.round(img.width * scale);
+        const scaledHeight = Math.round(img.height * scale);
+        
+        // Center crop
+        const x = Math.round((scaledWidth - targetWidth) / 2);
+        const y = Math.round((scaledHeight - targetHeight) / 2);
+        
+        ctx.drawImage(img, -x, -y, scaledWidth, scaledHeight);
+        
         canvas.toBlob((blob) => {
           if (blob) {
             const compressed = new File([blob], file.name.replace(/\.(\w+)$/, ".jpg"), { type: "image/jpeg" });
@@ -83,13 +89,12 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
           } else {
             resolve(file);
           }
-        }, "image/jpeg", 0.75);
+        }, "image/jpeg", 0.85);
       };
       img.onerror = () => resolve(file);
       img.src = URL.createObjectURL(file);
     });
   };
-
   useEffect(() => {
     const urls = images.map(file => URL.createObjectURL(file));
     setPreviewUrls(urls);
@@ -258,7 +263,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       const uploadImage = async (file: File) => {
         const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name}`;
         const storageRef = ref(storage, `property_image/all_images/${unique}`);
-        const toUpload = await compressImage(file);
+        const toUpload = await standardizeImage(file, 1200, 900);
         return new Promise<string | null>(async (resolve) => {
           try {
             const task = uploadBytesResumable(storageRef, toUpload);

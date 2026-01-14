@@ -80,7 +80,7 @@ export default function MessagesAdmin() {
     if (!timestamp) return "Unknown time";
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleString();
+      return date.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
     } catch {
       return "Invalid date";
     }

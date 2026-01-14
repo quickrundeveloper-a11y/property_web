@@ -219,14 +219,14 @@ export default function PropertyDetails() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Images and Details */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 min-w-0">
             {/* Image Gallery */}
             <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
               <div className="relative">
                 <img
                   src={allImages[selectedImageIndex] || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6"}
                   alt={property.title}
-                  className="w-full h-96 object-cover"
+                  className="w-full aspect-[4/3] md:h-[600px] md:aspect-auto object-cover"
                 />
                   <div className="absolute top-4 left-4 bg-slate-700 text-white px-3 py-1 rounded-lg text-sm font-medium">
                   {property.type || "For Rent"}
@@ -246,7 +246,7 @@ export default function PropertyDetails() {
                       <button
                         key={index}
                         onClick={() => setSelectedImageIndex(index)}
-                        className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 ${
+                        className={`flex-shrink-0 w-24 aspect-[4/3] rounded-lg overflow-hidden border-2 ${
                           selectedImageIndex === index ? "border-slate-700" : "border-gray-200"
                         }`}
                       >
@@ -267,22 +267,18 @@ export default function PropertyDetails() {
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Property Details</h2>
               
               {/* Basic Info */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-slate-700">{property.beds || 4}</div>
-                  <div className="text-gray-600 text-sm">Bedrooms</div>
+              <div className="grid grid-cols-3 gap-2 md:gap-6 mb-8">
+                <div className="text-center p-2 md:p-4 bg-gray-50 rounded-lg">
+                  <div className="text-lg md:text-2xl font-bold text-slate-700">{property.beds || 4}</div>
+                  <div className="text-gray-600 text-xs md:text-sm">Bedrooms</div>
                 </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-slate-700">{property.baths || 3}</div>
-                  <div className="text-gray-600 text-sm">Bathrooms</div>
+                <div className="text-center p-2 md:p-4 bg-gray-50 rounded-lg">
+                  <div className="text-lg md:text-2xl font-bold text-slate-700">{property.baths || 3}</div>
+                  <div className="text-gray-600 text-xs md:text-sm">Bathrooms</div>
                 </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-slate-700">{property.size || "2500"}</div>
-                  <div className="text-gray-600 text-sm">Sq Ft</div>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-slate-700">₹{Math.round((property.price || 25000) / (parseInt(property.size || "2500") || 2500))}</div>
-                  <div className="text-gray-600 text-sm">Per Sq Ft</div>
+                <div className="text-center p-2 md:p-4 bg-gray-50 rounded-lg">
+                  <div className="text-lg md:text-2xl font-bold text-slate-700">{property.size || "2500"}</div>
+                  <div className="text-gray-600 text-xs md:text-sm">Sq Ft</div>
                 </div>
               </div>
 

@@ -188,7 +188,7 @@ export default function MyProperties() {
                 <div className="p-4">
                   <div className="mb-3">
                     <p className="text-blue-600 font-bold text-lg">
-                      ₹{formatPrice(property).toLocaleString()}
+                      ₹{formatPrice(property).toLocaleString("en-IN")}
                       <span className="text-gray-400 text-sm font-normal">/month</span>
                     </p>
                   </div>
