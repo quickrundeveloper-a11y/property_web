@@ -469,29 +469,33 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-4">
-        <div>
-          <label className="block text-sm mb-1 text-white/80">Bedrooms</label>
-          <input
-            type="number"
-            required
-            className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
-            value={formData.bedrooms}
-            onChange={e => setFormData({...formData, bedrooms: e.target.value})}
-            placeholder="Count"
-          />
-        </div>
-        <div>
-          <label className="block text-sm mb-1 text-white/80">Bathrooms</label>
-          <input
-            type="number"
-            required
-            className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
-            value={formData.bathrooms}
-            onChange={e => setFormData({...formData, bathrooms: e.target.value})}
-            placeholder="Count"
-          />
-        </div>
+      <div className={`grid ${formData.propertyCategory === "land" ? "grid-cols-1" : "grid-cols-3"} gap-4 mb-4`}>
+        {formData.propertyCategory !== "land" && (
+          <div>
+            <label className="block text-sm mb-1 text-white/80">Bedrooms</label>
+            <input
+              type="number"
+              required
+              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+              value={formData.bedrooms}
+              onChange={e => setFormData({...formData, bedrooms: e.target.value})}
+              placeholder="Count"
+            />
+          </div>
+        )}
+        {formData.propertyCategory !== "land" && (
+          <div>
+            <label className="block text-sm mb-1 text-white/80">Bathrooms</label>
+            <input
+              type="number"
+              required
+              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+              value={formData.bathrooms}
+              onChange={e => setFormData({...formData, bathrooms: e.target.value})}
+              placeholder="Count"
+            />
+          </div>
+        )}
         <div>
           <label className="block text-sm mb-1 text-white/80">Area</label>
           <input
