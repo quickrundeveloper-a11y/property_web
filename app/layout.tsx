@@ -7,8 +7,14 @@ import ChatModal from "@/app/components/chat/ChatModal";
 import FloatingChatButton from "@/app/components/chat/FloatingChatButton";
 
 export const metadata: Metadata = {
-  title: "Hommie - Property Management Platform",
-  description: "Find, rent, buy, and manage properties with ease",
+  title: "Prime Nivaas: Buy, Sell & Rent Plots, Homes or Villas",
+  description:
+    "Looking for the best property? Prime Nivaas helps you buy, sell, or rent premium plots, homes, and villas effortlessly. Find your dream property today!",
+  keywords:
+    "real estate, buy plots, luxury villas for sale, homes for rent, sell property, prime nivaas, residential land, rental houses, property listings, investment plots",
+  verification: {
+    google: "qBe16FRPwxEAzJtxNw-JaEp-3Ixz_JaTH26PORx9DPM",
+  },
 };
 
 export default function RootLayout({
@@ -17,8 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
+    <html lang="en" suppressHydrationWarning>
+      <body className="antialiased" suppressHydrationWarning>
         <AuthProvider>
           <ChatProvider>
             <ConditionalLayout>
