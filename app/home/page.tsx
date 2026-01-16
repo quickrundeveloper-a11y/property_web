@@ -30,10 +30,10 @@ export default function Home() {
     const propertyId = property.id;
     const sellerId = property.sellerId || property.ownerId || property.userId || null;
     
-    if (!propertyId || !sellerId || !user) {
-      console.warn("Cannot open chat: Missing details or user session", { propertyId, sellerId, user: !!user });
-      if (!user) {
-        router.push("/auth");
+    if (!propertyId || !sellerId || !user || user.isAnonymous) {
+      console.warn("Cannot open chat: Missing details or user session", { propertyId, sellerId, user: !!user, isAnonymous: user?.isAnonymous });
+      if (!user || user.isAnonymous) {
+        router.push("/auth?fromContact=true");
         return;
       }
       alert("This property owner cannot be contacted at the moment (Missing owner details).");
@@ -417,6 +417,32 @@ export default function Home() {
     return '/month';
   };
 
+  const isPlotType = (item: any) => {
+    const cat = String(item?.propertyCategory || item?.category || '').toLowerCase();
+    const t = String(item?.type || item?.propertyType || '').toLowerCase();
+    return cat.includes('land') || cat.includes('plot') || t.includes('plot');
+  };
+
+  const matchesActiveType = (item: any) => {
+    if (isPlotType(item)) return true;
+    const unit = String(item?.priceUnit || '').toLowerCase();
+    const rawType = String(item?.type || item?.propertyType || item?.propertyCategory || item?.category || '').toLowerCase();
+    const isRent = unit === 'per_month' || unit === 'per_year' || rawType.includes('rent');
+    const isSale = unit === 'per_sqft' || rawType.includes('buy') || rawType.includes('sale') || rawType.includes('sell');
+    if (activeTab === 'Rent') return isRent || (!isSale && rawType === '');
+    if (activeTab === 'Buy' || activeTab === 'Sell') return isSale || (!isRent && rawType === '');
+    return true;
+  };
+
+  const getTypeLabel = (item: any) => {
+    if (isPlotType(item)) return 'POPULAR';
+    const unit = String(item?.priceUnit || '').toLowerCase();
+    const raw = String(item?.type || item?.propertyType || item?.propertyCategory || item?.category || '').toLowerCase();
+    if (unit === 'per_month' || unit === 'per_year' || raw.includes('rent')) return 'For Rent';
+    if (unit === 'per_sqft' || raw.includes('buy') || raw.includes('sale') || raw.includes('sell')) return 'For Sale';
+    return 'Property';
+  };
+
   useEffect(() => {
     fetchProperties();
   }, []);
@@ -507,7 +533,13 @@ export default function Home() {
                     Sell
                   </button>
                   <button
-                    onClick={() => router.push("/add-property")}
+                    onClick={() => {
+                      if (!user || user.isAnonymous) {
+                        router.push("/auth");
+                        return;
+                      }
+                      router.push("/add-property");
+                    }}
                     className={`px-4 lg:px-6 py-2 rounded-lg font-medium transition-colors text-sm lg:text-base ${
                       activeTab === "AddProperty"
                         ? "bg-white text-blue-600"
@@ -834,7 +866,7 @@ export default function Home() {
             </>
           ) : properties.length > 0 ? (
             // Dynamic Properties from Firebase
-            properties.filter(property => property && property.id).map((property, index) => (
+            properties.filter(property => property && property.id && matchesActiveType(property)).map((property, index) => (
               <div 
                 key={property.id} 
                 className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer overflow-hidden"
@@ -847,13 +879,13 @@ export default function Home() {
                     alt={property.title || property.name || "Property"}
                   />
                   
-                  {/* POPULAR Badge for first 3 properties */}
+                  {/* Type Badge for first 3 properties */}
                   {index < 3 && (
                     <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium flex items-center">
                       <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                       </svg>
-                      POPULAR
+                      {getTypeLabel(property)}
                     </div>
                   )}
                   
@@ -919,7 +951,7 @@ export default function Home() {
                       <svg className="w-4 h-4 mr-1 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M3 4a1 1 0 000 2v9a2 2 0 002 2h6a2 2 0 002-2V6a1 1 0 100-2H3zm6 2a1 1 0 00-1 1v6a1 1 0 102 0V7a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
-                      {property.area || property.sqft || "5x7"} m²
+                      {property.area || property.sqft || "5x7"} sqft
                     </div>
                   </div>
 
@@ -937,8 +969,14 @@ export default function Home() {
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          const phoneNumber = property.phone || property.contact || "+91-9876543210";
-                          window.location.href = `tel:${phoneNumber}`;
+                          if (!user || user.isAnonymous) {
+                            router.push("/auth?fromContact=true");
+                            return;
+                          }
+                          const rawPhone = property.phone || property.contact || "+91-9876543210";
+                          const sanitized = String(rawPhone).replace(/[^\d+]/g, "");
+                          const validPhone = sanitized.length > 5 ? sanitized : "+919876543210";
+                          window.location.href = `tel:${validPhone}`;
                         }}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center"
                       >

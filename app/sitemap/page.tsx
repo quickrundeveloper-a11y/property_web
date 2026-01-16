@@ -14,9 +14,7 @@ export default function Sitemap() {
       title: "Company",
       links: [
         { name: "About Us", href: "/company" },
-        { name: "How it works", href: "/how-it-works" },
         { name: "Contact", href: "/contact" },
-        { name: "Investors", href: "/investors" },
       ]
     },
     {

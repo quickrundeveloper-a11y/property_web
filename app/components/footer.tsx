@@ -37,28 +37,18 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* About */}
+          {/* Company */}
           <div className="col-span-1">
-            <h3 className="text-gray-900 font-semibold text-lg mb-6">ABOUT</h3>
+            <h3 className="text-gray-900 font-semibold text-lg mb-6">Company</h3>
             <ul className="space-y-4">
               <li>
                 <Link href="/company" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Company
-                </Link>
-              </li>
-              <li>
-                <Link href="/how-it-works" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  How it works
+                  About
                 </Link>
               </li>
               <li>
                 <Link href="/contact" className="text-gray-600 hover:text-gray-900 transition-colors">
                   Contact
-                </Link>
-              </li>
-              <li>
-                <Link href="/investors" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  Investors
                 </Link>
               </li>
             </ul>

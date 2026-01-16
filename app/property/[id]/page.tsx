@@ -12,9 +12,12 @@ interface Property {
   title: string;
   price: number;
   location: string;
-  beds: number;
-  baths: number;
-  size: string;
+  beds?: number;
+  bedrooms?: number;
+  baths?: number;
+  bathrooms?: number;
+  size?: string;
+  area?: string;
    propertyCategory?: string;
   amenities?: string[];
   features: string[];
@@ -282,18 +285,18 @@ export default function PropertyDetails() {
               <div className="grid grid-cols-3 gap-2 md:gap-6 mb-8">
                 {!isLand && (
                 <div className="text-center p-2 md:p-4 bg-gray-50 rounded-lg">
-                  <div className="text-lg md:text-2xl font-bold text-slate-700">{property.beds || 4}</div>
+                  <div className="text-lg md:text-2xl font-bold text-slate-700">{property.beds || property.bedrooms || 4}</div>
                   <div className="text-gray-600 text-xs md:text-sm">Bedrooms</div>
                 </div>
                 )}
                 {!isLand && (
                 <div className="text-center p-2 md:p-4 bg-gray-50 rounded-lg">
-                  <div className="text-lg md:text-2xl font-bold text-slate-700">{property.baths || 3}</div>
+                  <div className="text-lg md:text-2xl font-bold text-slate-700">{property.baths || property.bathrooms || 3}</div>
                   <div className="text-gray-600 text-xs md:text-sm">Bathrooms</div>
                 </div>
                 )}
                 <div className="text-center p-2 md:p-4 bg-gray-50 rounded-lg">
-                  <div className="text-lg md:text-2xl font-bold text-slate-700">{property.size || "2500"}</div>
+                  <div className="text-lg md:text-2xl font-bold text-slate-700">{property.size || property.area || "2500"}</div>
                   <div className="text-gray-600 text-xs md:text-sm">Sq Ft</div>
                 </div>
               </div>
@@ -381,15 +384,11 @@ export default function PropertyDetails() {
                   <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
                   </svg>
-                  {property.contactName || "Property Owner"}
+                  {(property as any).OwnerName || property.contactName || (property as any).sellerName || "Property Owner"}
                 </div>
               </div>
 
               <div className="space-y-3">
-                <button className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg font-medium transition-colors">
-                  Check Availability
-                </button>
-
                 <button 
                   onClick={async () => {
                     const sellerId =
@@ -398,9 +397,9 @@ export default function PropertyDetails() {
                       (property as any).userId ||
                       null;
 
-                    if (!sellerId || !user) {
-                      if (!user) {
-                        router.push("/auth");
+                    if (!sellerId || !user || user.isAnonymous) {
+                      if (!user || user.isAnonymous) {
+                        router.push("/auth?fromContact=true");
                         return;
                       }
                       alert("This property owner cannot be contacted at the moment (Missing owner details).");
@@ -473,8 +472,11 @@ export default function PropertyDetails() {
                 
                 <button 
                    onClick={() => {
+                     if (!user || user.isAnonymous) {
+                       router.push("/auth?fromContact=true");
+                       return;
+                     }
                      const phoneNumber = property.phone || property.contact || "+91-9876543210";
-                     // If the phone number doesn't look like a number, use default
                      const validPhone = phoneNumber.replace(/[^\d+]/g, '').length > 5 ? phoneNumber : "+91-9876543210";
                      window.location.href = `tel:${validPhone}`;
                    }}
@@ -486,12 +488,7 @@ export default function PropertyDetails() {
                   Call Owner
                 </button>
                 
-                <button className="w-full border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Download Brochure
-                </button>
+                
               </div>
 
               {/* Quick Info */}

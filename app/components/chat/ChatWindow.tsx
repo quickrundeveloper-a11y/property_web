@@ -43,7 +43,6 @@ export default function ChatWindow({ chatId, className = "", onBack }: ChatWindo
   const [newMessage, setNewMessage] = useState("");
   const [chatData, setChatData] = useState<ChatData | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [otherUserName, setOtherUserName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -160,7 +159,15 @@ export default function ChatWindow({ chatId, className = "", onBack }: ChatWindo
 
   const getOtherUserName = () => {
     if (!chatData || !currentUser) return "Chat";
-    return otherUserName || "Chat";
+    const otherId = chatData.users?.find((uid) => uid !== currentUser.uid);
+    const fromMap = otherId ? chatData.userNames?.[otherId] : "";
+    const meta = chatData as any;
+    const fallback =
+      meta?.sellerName ||
+      meta?.buyerName ||
+      meta?.OwnerName ||
+      meta?.contactName;
+    return fromMap || fallback || "Chat";
   };
 
   const formatTime = (timestamp: any) => {
