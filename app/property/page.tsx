@@ -2,23 +2,11 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { collection, query, orderBy, getDocs, where, doc, setDoc, deleteDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, getDocs, where, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
-
-interface Property {
-  id: string;
-  title: string;
-  location: string;
-  price: number;
-  images: string[];
-  bedrooms: number;
-  bathrooms: number;
-  area: string;
-  type: string;
-  priceUnit?: string;
-  propertyCategory?: string;
-}
+import { Property } from "@/lib/types";
+import Image from "next/image";
 
 function PropertySearchContent() {
   const searchParams = useSearchParams();
@@ -78,7 +66,7 @@ function PropertySearchContent() {
 
         const snapshot = await getDocs(q);
         const data = snapshot.docs.map((doc) => {
-          const d = doc.data() as any;
+          const d = doc.data();
           return {
             id: doc.id,
             title: d.title || d.name || "Property",
@@ -159,12 +147,12 @@ function PropertySearchContent() {
     }
   };
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | string) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
       maximumFractionDigits: 0,
-    }).format(price);
+    }).format(Number(price) || 0);
   };
 
   const getPriceSuffix = (p: Property) => {
@@ -307,13 +295,15 @@ function PropertySearchContent() {
                   className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer overflow-hidden"
                   onClick={() => window.location.href = `/property/${property.id}`}
                 >
-                  <div className="relative">
-                    <img
+                  <div className="relative h-48 w-full">
+                    <Image
                       src={property.images?.[0] || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"}
-                      className="h-48 w-full object-cover"
-                      alt={property.title}
+                      className="object-cover"
+                      alt={property.title || "Property"}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
-                    <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium">
+                    <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium z-10">
                       {filters.type.toUpperCase()}
                     </div>
                     <button

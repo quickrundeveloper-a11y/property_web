@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, updateDoc, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 export default function UpdatePhoneNumbers() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);

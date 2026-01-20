@@ -1,25 +1,22 @@
 "use client";
 
 import { useEffect, useState, useRef, Suspense } from "react";
-import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where, serverTimestamp, onSnapshot, setDoc, runTransaction } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, deleteDoc, doc, serverTimestamp, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useChat } from "@/app/context/ChatContext";
+import { Property } from "@/lib/types";
+import Image from "next/image";
 import { Users, Key, Building2, Search as SearchIcon, Home as HomeIcon, ShieldCheck, CircleDollarSign, Percent, BadgePercent, DollarSign, Scan, Sparkles, Bed, Bath, Square, Heart } from "lucide-react";
 
 import AddPropertyForm from "../components/add-property-form";
 
-function HomeContent() {
+function HomeContentInner() {
   const [activeTab, setActiveTab] = useState("Rent");
   const [searchQuery, setSearchQuery] = useState("");
-  const [properties, setProperties] = useState<any[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [location, setLocation] = useState("Barcelona, Spain");
-  const [moveInDate, setMoveInDate] = useState("");
-  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
-  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [favoriteProperties, setFavoriteProperties] = useState<Set<string>>(new Set());
   const [visibleCount, setVisibleCount] = useState(6);
   const propertyGridRef = useRef<HTMLDivElement>(null);
@@ -41,7 +38,6 @@ function HomeContent() {
 
   const router = useRouter();
   const { user } = useAuth();
-  const { openChat } = useChat();
 
   const scrollToFilter = (tab?: string) => {
     if (tab) setActiveTab(tab);
@@ -51,330 +47,223 @@ function HomeContent() {
     }, 100);
   };
 
-  const handleSMSClick = async (property: any) => {
-    const propertyName = property.title || property.name || "Property";
-    const propertyLocation = property.location || property.address || "Location";
-    const price = formatPrice(property);
-    const propertyId = property.id;
-    const sellerId = property.sellerId || property.ownerId || property.userId || null;
-    
-    if (!propertyId || !sellerId || !user || user.isAnonymous) {
-      console.warn("Cannot open chat: Missing details or user session", { propertyId, sellerId, user: !!user, isAnonymous: user?.isAnonymous });
-      if (!user || user.isAnonymous) {
-        router.push("/auth?fromContact=true");
-        return;
-      }
-      alert("This property owner cannot be contacted at the moment (Missing owner details).");
-      return;
-    }
-
-    const message = `Hi! I'm interested in ${propertyName} located at ${propertyLocation} priced at ₹${price.toLocaleString("en-IN")}/month. Could you please provide more details about this property?`;
-
-    // Create chat ID using Flutter-compatible logic (sorted UIDs)
-    const [uid1, uid2] = [user.uid, sellerId].sort();
-    const chatId = `${propertyId}_${uid1}_${uid2}`;
-
-    try {
-      await runTransaction(db, async (transaction) => {
-        // Use the correct collection path: property_All/main/chats
-        const chatRef = doc(db, "property_All", "main", "chats", chatId);
-        const chatDoc = await transaction.get(chatRef);
-
-        if (!chatDoc.exists()) {
-          const buyerName = user.displayName || "Buyer";
-          const sellerName = property.contactName || property.sellerName || "Property Owner";
-          
-          transaction.set(chatRef, {
-            chatId,
-            propertyId,
-            propertyName,
-            users: [user.uid, sellerId],
-            userNames: {
-              [user.uid]: buyerName,
-              [sellerId]: sellerName
-            },
-            lastMessage: message,
-            lastSenderId: user.uid,
-            lastUpdated: serverTimestamp(),
-            unreadCounts: {
-              [user.uid]: 0,
-              [sellerId]: 1
-            },
-            // Add fields to match the screenshot structure for better compatibility
-            buyerId: user.uid,
-            buyerName: buyerName,
-            sellerId: sellerId,
-            sellerName: sellerName,
-            participants: [user.uid, sellerId]
-          });
-
-          // Also create the first message in the subcollection
-          const messageRef = doc(collection(db, "property_All", "main", "chats", chatId, "messages"));
-          transaction.set(messageRef, {
-            text: message,
-            senderId: user.uid,
-            senderName: buyerName,
-            createdAt: serverTimestamp()
-          });
-        }
-      });
-
-      openChat(chatId);
-    } catch (error) {
-      console.error("Error creating chat:", error);
-      alert("Failed to start chat. Please try again.");
-    }
-  };
-
   // Helper function to format price properly
-  const formatPrice = (item: any) => {
+  const formatPrice = (item: Property) => {
     if (!item) return 25000;
     const price = item.price || item.rent || item.cost || 25000;
     const numPrice = typeof price === 'string' ? parseInt(price.replace(/[^\d]/g, '')) : Number(price);
     return isNaN(numPrice) ? 25000 : numPrice;
   };
 
-  // Get user's current location
-  const getCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          try {
-            // Use reverse geocoding to get location name
-            const response = await fetch(
-              `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=YOUR_API_KEY`
-            );
-            const data = await response.json();
-            if (data.results && data.results[0]) {
-              const locationName = data.results[0].formatted;
-              setLocation(locationName);
-            }
-          } catch (error) {
-            // Fallback to coordinates if API fails
-            setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-          }
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          alert("Unable to get your location. Please enter manually.");
-        }
-      );
-    } else {
-      alert("Geolocation is not supported by this browser.");
-    }
-  };
-
-  // Search for location suggestions
-  const searchLocations = async (query: string) => {
-    if (query.length < 2) {
-      setLocationSuggestions([]);
+  // Toggle favorite status
+  const toggleFavorite = async (propertyId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    
+    // Validate inputs
+    if (!propertyId) {
+      console.error("Invalid parameters for toggleFavorite");
       return;
     }
 
-    // Indian cities and popular locations
-    const indianCities = [
-      "Mumbai, Maharashtra",
-      "Delhi, India", 
-      "Bangalore, Karnataka",
-      "Hyderabad, Telangana",
-      "Chennai, Tamil Nadu",
-      "Kolkata, West Bengal",
-      "Pune, Maharashtra",
-      "Ahmedabad, Gujarat",
-      "Jaipur, Rajasthan",
-      "Surat, Gujarat",
-      "Lucknow, Uttar Pradesh",
-      "Kanpur, Uttar Pradesh",
-      "Nagpur, Maharashtra",
-      "Indore, Madhya Pradesh",
-      "Thane, Maharashtra",
-      "Bhopal, Madhya Pradesh",
-      "Visakhapatnam, Andhra Pradesh",
-      "Pimpri-Chinchwad, Maharashtra",
-      "Patna, Bihar",
-      "Vadodara, Gujarat",
-      "Ghaziabad, Uttar Pradesh",
-      "Ludhiana, Punjab",
-      "Agra, Uttar Pradesh",
-      "Nashik, Maharashtra",
-      "Faridabad, Haryana",
-      "Meerut, Uttar Pradesh",
-      "Rajkot, Gujarat",
-      "Kalyan-Dombivali, Maharashtra",
-      "Vasai-Virar, Maharashtra",
-      "Varanasi, Uttar Pradesh",
-      "Srinagar, Jammu and Kashmir",
-      "Aurangabad, Maharashtra",
-      "Dhanbad, Jharkhand",
-      "Amritsar, Punjab",
-      "Navi Mumbai, Maharashtra",
-      "Allahabad, Uttar Pradesh",
-      "Ranchi, Jharkhand",
-      "Howrah, West Bengal",
-      "Coimbatore, Tamil Nadu",
-      "Jabalpur, Madhya Pradesh",
-      "Gwalior, Madhya Pradesh",
-      "Vijayawada, Andhra Pradesh",
-      "Jodhpur, Rajasthan",
-      "Madurai, Tamil Nadu",
-      "Raipur, Chhattisgarh",
-      "Kota, Rajasthan",
-      "Guwahati, Assam",
-      "Chandigarh, India",
-      "Solapur, Maharashtra",
-      "Hubli-Dharwad, Karnataka",
-      "Bareilly, Uttar Pradesh",
-      "Moradabad, Uttar Pradesh",
-      "Mysore, Karnataka",
-      "Gurgaon, Haryana",
-      "Aligarh, Uttar Pradesh",
-      "Jalandhar, Punjab",
-      "Tiruchirappalli, Tamil Nadu",
-      "Bhubaneswar, Odisha",
-      "Salem, Tamil Nadu",
-      "Mira-Bhayandar, Maharashtra",
-      "Warangal, Telangana",
-      "Thiruvananthapuram, Kerala",
-      "Guntur, Andhra Pradesh",
-      "Bhiwandi, Maharashtra",
-      "Saharanpur, Uttar Pradesh",
-      "Gorakhpur, Uttar Pradesh",
-      "Bikaner, Rajasthan",
-      "Amravati, Maharashtra",
-      "Noida, Uttar Pradesh",
-      "Jamshedpur, Jharkhand",
-      "Bhilai Nagar, Chhattisgarh",
-      "Cuttack, Odisha",
-      "Firozabad, Uttar Pradesh",
-      "Kochi, Kerala",
-      "Bhavnagar, Gujarat",
-      "Dehradun, Uttarakhand",
-      "Durgapur, West Bengal",
-      "Asansol, West Bengal",
-      "Nanded-Waghala, Maharashtra",
-      "Kolhapur, Maharashtra",
-      "Ajmer, Rajasthan",
-      "Akola, Maharashtra",
-      "Gulbarga, Karnataka",
-      "Jamnagar, Gujarat",
-      "Ujjain, Madhya Pradesh",
-      "Loni, Uttar Pradesh",
-      "Siliguri, West Bengal",
-      "Jhansi, Uttar Pradesh",
-      "Ulhasnagar, Maharashtra",
-      "Nellore, Andhra Pradesh",
-      "Jammu, Jammu and Kashmir",
-      "Sangli-Miraj & Kupwad, Maharashtra",
-      "Belgaum, Karnataka",
-      "Mangalore, Karnataka",
-      "Ambattur, Tamil Nadu",
-      "Tirunelveli, Tamil Nadu",
-      "Malegaon, Maharashtra",
-      "Gaya, Bihar",
-      "Jalgaon, Maharashtra",
-      "Udaipur, Rajasthan",
-      "Maheshtala, West Bengal"
-    ];
+    if (!user) {
+        router.push("/auth");
+        return;
+    }
+    
+    const isFavorite = favoriteProperties.has(propertyId);
 
-    const filtered = indianCities.filter(city => 
-      city.toLowerCase().includes(query.toLowerCase())
-    ).slice(0, 5);
-
-    setLocationSuggestions(filtered);
-  };
-
-  // Handle location input change
-  const handleLocationChange = (value: string) => {
-    setLocation(value);
-    searchLocations(value);
-    setShowLocationSuggestions(true);
-  };
-
-  // Select location from suggestions
-  const selectLocation = (selectedLocation: string) => {
-    setLocation(selectedLocation);
-    setLocationSuggestions([]);
-    setShowLocationSuggestions(false);
-  };
-
-  // Add event listener to close suggestions when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.location-search-container')) {
-        setShowLocationSuggestions(false);
+    try {
+      if (isFavorite) {
+        // Remove from favorites
+        await deleteDoc(doc(db, "property_All", "main", "users", user.uid, "favorites", propertyId));
+        console.log(`Removed property ${propertyId} from Firebase favorites`);
+      } else {
+        // Add to favorites
+        await setDoc(doc(db, "property_All", "main", "users", user.uid, "favorites", propertyId), {
+          propertyId: propertyId,
+          userId: user.uid,
+          createdAt: serverTimestamp()
+        });
+        console.log(`Added property ${propertyId} to Firebase favorites`);
       }
-    };
+      
+      // Update local state
+      setFavoriteProperties(prev => {
+        const next = new Set(prev);
+        if (isFavorite) {
+          next.delete(propertyId);
+        } else {
+          next.add(propertyId);
+        }
+        return next;
+      });
+      
+    } catch (error: unknown) {
+      console.error("Firebase error:", error);
+    }
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+    // Show visual feedback
+    try {
+      const heartButton = e.currentTarget as HTMLElement;
+      if (heartButton && heartButton.style) {
+        heartButton.style.transform = isFavorite ? 'scale(0.8)' : 'scale(1.2)';
+        setTimeout(() => {
+          if (heartButton && heartButton.style) {
+            heartButton.style.transform = 'scale(1)';
+          }
+        }, 150);
+      }
+    } catch (animationError: unknown) {
+      // Ignore animation errors - they're not critical
+      console.log("Animation error (non-critical):", animationError);
+    }
+  };
 
-  // Fetch properties from Firestore
-  useEffect(() => {
-    const fetchProperties = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "property_All", "main", "properties"));
-        const propertiesData = querySnapshot.docs.map(doc => ({
+
+
+  const fetchProperties = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const q = query(
+        collection(db, "property_All", "main", "properties"),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map((doc) => {
+        const docData = doc.data();
+        return {
           id: doc.id,
-          ...doc.data()
-        }));
-        setProperties(propertiesData);
-      } catch (err) {
-        console.error("Error fetching properties:", err);
-        setError("Failed to load properties. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
+          ...docData,
+          // Ensure required fields exist
+          title: docData.title || docData.name || 'Property',
+          location: docData.location || docData.address || 'Location',
+          price: docData.price || docData.rent || docData.cost || 25000,
+          bedrooms: docData.bedrooms || docData.beds || 3,
+          bathrooms: docData.bathrooms || docData.baths || 2,
+          area: docData.area || docData.sqft || '5x7',
+          priceUnit: docData.priceUnit || docData.price_unit || 'per_month',
+          phone: docData.phone || docData.contact || '+91-9876543210',
+          images: Array.isArray(docData.images) ? docData.images : (docData.image ? [docData.image] : []),
+          image: docData.images?.[0] || docData.image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
+        };
+      }).filter(property => property && property.id);
 
+      console.log("Firebase Properties Data:", data);
+      console.log("Number of properties found:", data.length);
+      
+      // Debug: Log each property's image data
+      data.forEach((property: Property, index: number) => {
+        console.log(`Property ${index + 1} (${property.title || property.name || 'Unnamed'}):`, {
+          id: property.id,
+          images: property.images,
+          image: property.image,
+          hasImages: !!property.images,
+          hasImage: !!property.image,
+          imagesLength: property.images?.length || 0,
+          firstImage: property.images?.[0] || property.image,
+          phone: property.phone,
+          contact: property.contact,
+          allKeys: Object.keys(property).sort()
+        });
+      });
+
+      setProperties(data);
+    } catch (error: unknown) {
+      console.error("Error fetching properties:", error);
+      setError("Failed to load properties from Firebase");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPriceSuffix = (item: Property) => {
+    const unit = String(item?.priceUnit || '').toLowerCase();
+    if (unit === 'per_year') return '/year';
+    if (unit === 'per_sqft') return '/sq ft';
+    return '/month';
+  };
+
+  const isPlotType = (item: Property) => {
+    const cat = String(item?.propertyCategory || item?.category || '').toLowerCase();
+    const t = String(item?.type || item?.propertyType || '').toLowerCase();
+    return cat.includes('land') || cat.includes('plot') || t.includes('plot');
+  };
+
+  const matchesActiveType = (item: Property) => {
+    if (activeTab === 'Buy') return true; // Buy shows both Rent and Sell (All)
+
+    const unit = String(item?.priceUnit || '').toLowerCase();
+    const rawType = String(item?.type || item?.propertyType || item?.propertyCategory || item?.category || '').toLowerCase();
+    
+    const isPlot = isPlotType(item);
+    
+    const isRent = unit === 'per_month' || unit === 'per_year' || rawType.includes('rent');
+    const isSale = isPlot || unit === 'per_sqft' || rawType.includes('buy') || rawType.includes('sale') || rawType.includes('sell');
+
+    if (activeTab === 'Rent') return isRent;
+    if (activeTab === 'Sell') return isSale;
+    
+    return true;
+  };
+
+  useEffect(() => {
     fetchProperties();
   }, []);
 
-  // Toggle Favorite
-  const toggleFavorite = (propertyId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
-    setFavoriteProperties(prev => {
-      const newFavorites = new Set(prev);
-      if (newFavorites.has(propertyId)) {
-        newFavorites.delete(propertyId);
-      } else {
-        newFavorites.add(propertyId);
+  useEffect(() => {
+    const loadFavorites = async () => {
+      if (!user) {
+        setFavoriteProperties(new Set());
+        return;
       }
-      return newFavorites;
+      try {
+        const favoritesQuery = collection(db, "property_All", "main", "users", user.uid, "favorites");
+        const snapshot = await getDocs(favoritesQuery);
+        const favoriteIds = new Set(snapshot.docs.map(doc => doc.id));
+        setFavoriteProperties(favoriteIds);
+        console.log(`Loaded ${favoriteIds.size} favorites from Firebase for user ${user.uid}`);
+      } catch (error) {
+        console.error("Error loading favorites from Firebase:", error);
+      }
+    };
+    loadFavorites();
+  }, [user]);
+
+  useEffect(() => {
+    const q = query(collection(db, "property_All", "main", "properties"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setProperties(data);
+      setLoading(false);
+    }, (err) => {
+      console.error("Realtime properties error:", err);
+      setError("Failed to subscribe to properties");
+      setLoading(false);
     });
-  };
+    return () => unsub();
+  }, []);
 
-  // Filter properties based on active tab and search query
   const filteredProperties = properties.filter(property => {
-    // Filter by type (Rent/Buy/Sell)
-    const matchesType = activeTab === "Rent" 
-      ? (property.type === "Rent" || property.status === "For Rent")
-      : activeTab === "Buy"
-      ? (property.type === "Sale" || property.status === "For Sale")
-      : true; // Sell tab shows add property CTA, handled separately
-
-    // Filter by search query
-    const matchesSearch = searchQuery === "" || 
-      (property.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-       property.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       property.address?.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    return matchesType && matchesSearch;
+    if (!property || !property.id) return false;
+    if (!matchesActiveType(property)) return false;
+    
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase().trim();
+      const title = (property.title || property.name || '').toLowerCase();
+      const location = (property.location || property.address || '').toLowerCase();
+      const price = (property.price || property.rent || property.cost || '').toString();
+      const type = (property.type || property.propertyType || '').toLowerCase();
+      
+      return title.includes(q) || location.includes(q) || price.includes(q) || type.includes(q);
+    }
+    
+    return true;
   });
 
-  const getPriceSuffix = (property: any) => {
-    if (property.type === "Rent" || property.status === "For Rent") {
-      return "/month";
-    }
-    return "";
-  };
-
   return (
-    <div className="min-h-screen bg-white font-sans">
+    <div className="min-h-screen bg-[#f4f8fc]">
       {/* HERO SECTION */}
       <section className="bg-gradient-to-b from-[#0085FF] via-[#0085FF] via-50% to-[#0085FF]/0 text-white relative overflow-hidden min-h-[calc(100vh-64px)] flex flex-col lg:flex-row items-center">
         <div className="max-w-7xl mx-auto px-4 py-8 lg:py-20 w-full relative z-10 order-2 lg:order-1">
@@ -437,6 +326,13 @@ function HomeContent() {
                 </button>
               </div>
 
+              {activeTab === "AddProperty" && (
+                <AddPropertyForm defaultType="sell" onSuccess={() => {
+                  setActiveTab("Rent");
+                  fetchProperties();
+                }} />
+              )}
+
               {/* Stats */}
               <div className="flex flex-wrap justify-center lg:justify-start gap-12 lg:gap-24 mt-20">
                 <div className="flex flex-col gap-6 items-center lg:items-start">
@@ -474,10 +370,13 @@ function HomeContent() {
         
         {/* Right Side - House Image (Absolute on Desktop) */}
         <div className="hidden lg:block lg:absolute lg:bottom-0 lg:right-0 lg:w-[38%] lg:h-[98%] lg:order-2 z-0 overflow-hidden">
-          <img
+          <Image
             src="/banner.png"
             alt="Beautiful House"
-            className="w-full h-full object-cover object-[15%_100%]"
+            fill
+            priority
+            className="object-cover object-[15%_100%]"
+            sizes="(min-width: 1024px) 38vw, 100vw"
           />
           {/* Excellent Rating Badge */}
           <div className="absolute bottom-0 right-0 bg-[#000929] text-white p-4 rounded-tl-lg min-w-[200px]">
@@ -493,12 +392,11 @@ function HomeContent() {
           </div>
         </div>
       </section>
-
-      {/* FEATURE CARDS - New Design */}
-      <section className="bg-white py-16 -mt-8 relative z-20">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-8 lg:gap-16">
-            {/* Virtual Tours */}
+      {/* FEATURES SECTION */}
+      <section className="py-20 bg-[#F5F9FF]">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {/* Property Insurance */}
             <div className="flex flex-col gap-4">
               <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF]">
                 <HomeIcon className="w-8 h-8 text-[#0085FF]" />
@@ -506,8 +404,32 @@ function HomeContent() {
                    <ShieldCheck className="w-3 h-3 text-white" />
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-[#000929]">Virtual home tour</h3>
-              <p className="text-[#000929]/60 text-sm leading-relaxed">You can communicate directly with landlords and we provide you with virtual tour before you buy or rent the property.</p>
+              <h3 className="text-xl font-bold text-[#000929]">Property Insurance</h3>
+              <p className="text-[#000929]/60 text-sm leading-relaxed">We offer our customer property protection of liability coverage and insurance for their better life.</p>
+            </div>
+
+            {/* Best Price */}
+            <div className="flex flex-col gap-4">
+              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF]">
+                <CircleDollarSign className="w-8 h-8 text-[#0085FF]" />
+                <div className="absolute -bottom-1 -right-1 bg-[#0085FF] p-1.5 rounded-full border-2 border-white">
+                   <Percent className="w-3 h-3 text-white" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-[#000929]">Best Price</h3>
+              <p className="text-[#000929]/60 text-sm leading-relaxed">Not sure what you should be charging for your property? No need to worry, let us do the numbers for you.</p>
+            </div>
+
+            {/* Lowest Commission */}
+            <div className="flex flex-col gap-4">
+              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF]">
+                <BadgePercent className="w-8 h-8 text-[#0085FF]" />
+                <div className="absolute -bottom-1 -right-1 bg-[#0085FF] p-1.5 rounded-full border-2 border-white">
+                   <DollarSign className="w-3 h-3 text-white" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-[#000929]">Lowest Commission</h3>
+              <p className="text-[#000929]/60 text-sm leading-relaxed">You no longer have to negotiate commissions and haggle with other agents it only cost 2%!</p>
             </div>
 
             {/* Overall Control */}
@@ -608,10 +530,12 @@ function HomeContent() {
                     onClick={() => router.push(`/property/${property.id}`)}
                   >
                     <div className="relative h-56 overflow-hidden rounded-t-xl">
-                      <img
+                      <Image
                         src={property.images?.[0] || property.image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"}
-                        className="h-full w-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                        className="object-cover transform group-hover:scale-105 transition-transform duration-500"
                         alt={property.title || property.name || "Property"}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>
 
@@ -775,7 +699,7 @@ function HomeContent() {
           </h2>
           
           <p className="text-gray-500 text-base mb-10 max-w-xl mx-auto">
-            Discover ways to increase your home's value and get listed. No Spam.
+            Discover ways to increase your home&apos;s value and get listed. No Spam.
           </p>
           
           <div className="bg-white p-2 rounded-lg shadow-sm flex items-center max-w-lg mx-auto mb-8">
@@ -800,12 +724,15 @@ function HomeContent() {
   );
 }
 
-export default function Home() {
+export default function HomeContent() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-    </div>}>
-      <HomeContent />
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <HomeContentInner />
     </Suspense>
   );
 }
+

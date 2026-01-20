@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, deleteDoc, doc, getDoc, onSnapshot } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { Sparkles, Bed, Bath, Square, Heart, Search as SearchIcon } from "lucide-react";
+import { Bed, Bath, Heart, Square } from "lucide-react";
 
 interface Property {
   id: string;
@@ -99,7 +100,7 @@ export default function MyProperties() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, router]);
 
   const removeFromFavorites = async (propertyId: string) => {
     if (!user) return;
@@ -154,17 +155,18 @@ export default function MyProperties() {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {favoriteProperties.map((property, index) => (
+            {favoriteProperties.map((property) => (
               <div 
                 key={property.id} 
                 className="bg-white rounded-lg border border-gray-100 overflow-visible hover:shadow-xl transition-all duration-300 cursor-pointer group relative max-w-xs mx-auto w-full"
                 onClick={() => router.push(`/property/${property.id}`)}
               >
                 <div className="relative h-48 overflow-hidden rounded-t-xl">
-                  <img
+                  <Image
                     src={property.images?.[0] || property.image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"}
-                    className="h-full w-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                    className="object-cover transform group-hover:scale-105 transition-transform duration-500"
                     alt={property.title || property.name || "Property"}
+                    fill
                   />
                 </div>
                 

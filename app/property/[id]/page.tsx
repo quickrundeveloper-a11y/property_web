@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { doc, getDoc, runTransaction, serverTimestamp, collection, deleteDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
@@ -24,10 +25,7 @@ import {
   Layers,
   Info,
   ShieldCheck,
-  ChevronLeft,
-  ChevronRight,
   X,
-  Grid,
   ImageIcon
 } from "lucide-react";
 
@@ -60,6 +58,10 @@ interface Property {
   contactName?: string;
   contact?: string;
   priceUnit?: string;
+  OwnerName?: string;
+  sellerName?: string;
+  ownerId?: string;
+  userId?: string;
 }
 
 export default function PropertyDetails() {
@@ -258,7 +260,7 @@ export default function PropertyDetails() {
             <Home className="w-8 h-8 text-slate-400" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Property Not Found</h1>
-          <p className="text-slate-500 mb-6">The property you're looking for might have been removed or is temporarily unavailable.</p>
+          <p className="text-slate-500 mb-6">The property you&apos;re looking for might have been removed or is temporarily unavailable.</p>
           <button
             onClick={() => router.push("/home")}
             className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-medium transition-all w-full"
@@ -280,16 +282,6 @@ export default function PropertyDetails() {
   };
 
   const isLand = String(property.propertyCategory || "").toLowerCase() === "land";
-
-  const handlePrevImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedImageIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
-  };
-
-  const handleNextImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedImageIndex((prev) => (prev === allImages.length - 1 ? 0 : prev + 1));
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -354,11 +346,12 @@ export default function PropertyDetails() {
           <div className="lg:col-span-2 space-y-8">
             {/* Image Gallery */}
             <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="relative group">
-                <img
+              <div className="relative group w-full aspect-[4/3] md:h-[600px] md:aspect-auto">
+                <Image
                   src={allImages[selectedImageIndex] || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6"}
                   alt={property.title}
-                  className="w-full aspect-[4/3] md:h-[600px] md:aspect-auto object-cover transition-transform duration-700"
+                  fill
+                  className="object-cover transition-transform duration-700 cursor-pointer"
                   onClick={() => setShowAllPhotos(true)}
                 />
                 
@@ -389,16 +382,17 @@ export default function PropertyDetails() {
                       <button
                         key={index}
                         onClick={() => setSelectedImageIndex(index)}
-                        className={`flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all snap-start ${
+                        className={`relative flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all snap-start ${
                           selectedImageIndex === index
                             ? "border-blue-600 ring-2 ring-blue-100 scale-105 shadow-md"
                             : "border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-300"
                         }`}
                       >
-                        <img
+                        <Image
                           src={image}
                           alt={`${property.title} ${index + 1}`}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
                         />
                       </button>
                     ))}
@@ -550,7 +544,7 @@ export default function PropertyDetails() {
                       </div>
                       <div>
                          <div className="text-xs text-slate-500 font-medium uppercase">Property Owner</div>
-                         <div className="font-bold text-slate-900">{(property as any).OwnerName || property.contactName || (property as any).sellerName || "Property Owner"}</div>
+                         <div className="font-bold text-slate-900">{property.OwnerName || property.contactName || property.sellerName || "Property Owner"}</div>
                       </div>
                    </div>
 
@@ -558,8 +552,8 @@ export default function PropertyDetails() {
                      onClick={async () => {
                        const sellerId =
                          property.sellerId ||
-                         (property as any).ownerId ||
-                         (property as any).userId ||
+                         property.ownerId ||
+                         property.userId ||
                          null;
 
                        if (!sellerId || !user || user.isAnonymous) {
@@ -570,9 +564,8 @@ export default function PropertyDetails() {
                          alert("This property owner cannot be contacted at the moment (Missing owner details).");
                          return;
                        }
-
                        const buyerName = user.displayName || "Buyer";
-                       const sellerName = (property as any).OwnerName || property.contactName || (property as any).sellerName || "Property Owner";
+                       const sellerName = property.OwnerName || property.contactName || property.sellerName || "Property Owner";
                        const message = `Hi, I'm interested in ${property.title}`;
                        
                        const [uid1, uid2] = [user.uid, sellerId].sort();
@@ -664,8 +657,8 @@ export default function PropertyDetails() {
                        // Same logic as above
                        const sellerId =
                          property.sellerId ||
-                         (property as any).ownerId ||
-                         (property as any).userId ||
+                         property.ownerId ||
+                         property.userId ||
                          null;
 
                        if (!sellerId || !user || user.isAnonymous) {
@@ -678,7 +671,7 @@ export default function PropertyDetails() {
                        }
                        // ... logic ...
                         const buyerName = user.displayName || "Buyer";
-                        const sellerName = (property as any).OwnerName || property.contactName || (property as any).sellerName || "Property Owner";
+                        const sellerName = property.OwnerName || property.contactName || property.sellerName || "Property Owner";
                         const message = `Hi, I'm interested in ${property.title}`;
                         
                         const [uid1, uid2] = [user.uid, sellerId].sort();
@@ -780,10 +773,11 @@ export default function PropertyDetails() {
                       setShowAllPhotos(false);
                     }}
                   >
-                    <img 
+                    <Image
                       src={img} 
                       alt={`Property view ${idx + 1}`} 
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors"></div>
                   </div>

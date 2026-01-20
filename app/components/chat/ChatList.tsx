@@ -7,12 +7,10 @@ import {
   collection, 
   query, 
   where, 
-  onSnapshot,
-  getDoc,
-  doc
+  onSnapshot
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 
 interface Chat {
   id: string;
@@ -23,7 +21,7 @@ interface Chat {
   userNames: { [key: string]: string };
   lastMessage: string;
   lastSenderId: string;
-  lastUpdated: any;
+  lastUpdated: { seconds: number; nanoseconds: number } | null;
   unreadCounts: { [key: string]: number };
 }
 
@@ -36,9 +34,8 @@ interface ChatListProps {
 export default function ChatList({ selectedChatId, className = "", onChatSelect }: ChatListProps) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [nameCache, setNameCache] = useState<{ [key: string]: string }>({});
   const router = useRouter();
   const { openChat } = useChat();
 
@@ -72,8 +69,8 @@ export default function ChatList({ selectedChatId, className = "", onChatSelect 
       
       // Sort client-side to avoid needing a composite index
       chatList.sort((a, b) => {
-        const timeA = a.lastUpdated?.toDate ? a.lastUpdated.toDate().getTime() : 0;
-        const timeB = b.lastUpdated?.toDate ? b.lastUpdated.toDate().getTime() : 0;
+        const timeA = a.lastUpdated ? a.lastUpdated.seconds : 0;
+        const timeB = b.lastUpdated ? b.lastUpdated.seconds : 0;
         return timeB - timeA;
       });
 
@@ -93,9 +90,9 @@ export default function ChatList({ selectedChatId, className = "", onChatSelect 
     return chat.userNames?.[otherId] || "User";
   };
 
-  const formatTime = (timestamp: any) => {
+  const formatTime = (timestamp: { seconds: number; nanoseconds: number } | null) => {
     if (!timestamp) return "";
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const date = new Date(timestamp.seconds * 1000);
     const now = new Date();
     
     if (date.toDateString() === now.toDateString()) {
@@ -206,9 +203,8 @@ export default function ChatList({ selectedChatId, className = "", onChatSelect 
         ) : (
           <div className="divide-y divide-gray-50">
             {filteredChats.map((chat) => {
-              const otherUserId = getOtherUserId(chat);
               const otherUserName = getOtherUserName(chat);
-              const unreadCount = chat.unreadCounts?.[currentUser.uid] || 0;
+              const unreadCount = currentUser ? (chat.unreadCounts?.[currentUser.uid] || 0) : 0;
               const initials = getInitials(otherUserName);
               const isSelected = selectedChatId === chat.id;
 
@@ -250,7 +246,7 @@ export default function ChatList({ selectedChatId, className = "", onChatSelect 
                     
                     <div className="flex justify-between items-center">
                       <p className={`text-sm truncate ${unreadCount > 0 ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
-                        <span className="text-gray-400 font-normal">{chat.lastSenderId === currentUser.uid ? "You: " : ""}</span>
+                        <span className="text-gray-400 font-normal">{currentUser && chat.lastSenderId === currentUser.uid ? "You: " : ""}</span>
                         {chat.lastMessage}
                       </p>
                       {unreadCount > 0 && (

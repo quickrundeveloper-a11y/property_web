@@ -12,7 +12,12 @@ export default function ChatModal() {
   // Sync with targetChatId
   useEffect(() => {
     if (targetChatId) {
-      setActiveChatId(targetChatId);
+      // Defer state update to avoid "setState during render" issues if this effect runs too early
+      // or causes a loop. Though mostly harmless in effects, strict mode can be noisy.
+      const timer = setTimeout(() => {
+        setActiveChatId(targetChatId);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [targetChatId]);
 

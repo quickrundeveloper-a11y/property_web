@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { db, auth } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { updateProfile, updatePassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
@@ -31,18 +31,7 @@ export default function ProfilePage() {
   });
   const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  useEffect(() => {
-    if (!authLoading && (!user || user.isAnonymous)) {
-      router.push("/auth");
-      return;
-    }
-
-    if (user && !user.isAnonymous) {
-      fetchProfile();
-    }
-  }, [user, authLoading, router]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     if (!user) return;
     try {
       const docRef = doc(db, "property_All", "main", "users", user.uid);
@@ -64,13 +53,24 @@ export default function ProfilePage() {
           email: user.email || "",
         }));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error fetching profile:", error);
       setMessage({ type: 'error', text: 'Failed to load profile data.' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!authLoading && (!user || user.isAnonymous)) {
+      router.push("/auth");
+      return;
+    }
+
+    if (user && !user.isAnonymous) {
+      fetchProfile();
+    }
+  }, [user, authLoading, router, fetchProfile]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,9 +100,10 @@ export default function ProfilePage() {
       }, { merge: true });
 
       setMessage({ type: 'success', text: 'Profile saved successfully!' });
-    } catch (error) {
-      console.error("Error saving profile:", error);
-      setMessage({ type: 'error', text: 'Failed to save profile.' });
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("Error updating profile:", err);
+      setMessage({ type: 'error', text: 'Failed to update profile: ' + err.message });
     } finally {
       setSaving(false);
     }
@@ -132,13 +133,10 @@ export default function ProfilePage() {
       setPasswordMessage({ type: 'success', text: "Password updated successfully." });
       setPasswordData({ newPassword: "", confirmPassword: "" });
       setShowPasswordChange(false);
-    } catch (error: any) {
-      console.error("Error updating password:", error);
-      if (error.code === 'auth/requires-recent-login') {
-        setPasswordMessage({ type: 'error', text: "For security, please log out and log back in to change your password." });
-      } else {
-        setPasswordMessage({ type: 'error', text: "Failed to update password. Please try again." });
-      }
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("Error changing password:", err);
+      setPasswordMessage({ type: 'error', text: 'Failed to change password: ' + err.message });
     } finally {
       setSaving(false);
     }

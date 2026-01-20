@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { User } from "firebase/auth";
 import { 
   doc, 
-  getDoc,
   collection, 
   query, 
   orderBy, 
@@ -22,7 +22,7 @@ interface Message {
   text: string;
   senderId: string;
   senderName: string;
-  createdAt: any;
+  createdAt: { seconds: number; nanoseconds: number } | null;
 }
 
 interface ChatData {
@@ -30,6 +30,10 @@ interface ChatData {
   userNames: { [key: string]: string };
   propertyName: string;
   unreadCounts: { [key: string]: number };
+  sellerName?: string;
+  buyerName?: string;
+  OwnerName?: string;
+  contactName?: string;
 }
 
 interface ChatWindowProps {
@@ -42,7 +46,7 @@ export default function ChatWindow({ chatId, className = "", onBack }: ChatWindo
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [chatData, setChatData] = useState<ChatData | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -134,7 +138,8 @@ export default function ChatWindow({ chatId, className = "", onBack }: ChatWindo
 
       // 2. Update chat document in property_All/main/chats
       const chatRef = doc(db, "property_All", "main", "chats", chatId);
-      const updateData: any = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updateData: Record<string, any> = {
         lastMessage: messageText,
         lastSenderId: currentUser.uid,
         lastUpdated: serverTimestamp(),
@@ -161,18 +166,17 @@ export default function ChatWindow({ chatId, className = "", onBack }: ChatWindo
     if (!chatData || !currentUser) return "Chat";
     const otherId = chatData.users?.find((uid) => uid !== currentUser.uid);
     const fromMap = otherId ? chatData.userNames?.[otherId] : "";
-    const meta = chatData as any;
     const fallback =
-      meta?.sellerName ||
-      meta?.buyerName ||
-      meta?.OwnerName ||
-      meta?.contactName;
+      chatData.sellerName ||
+      chatData.buyerName ||
+      chatData.OwnerName ||
+      chatData.contactName;
     return fromMap || fallback || "Chat";
   };
 
-  const formatTime = (timestamp: any) => {
+  const formatTime = (timestamp: { seconds: number; nanoseconds: number } | null) => {
     if (!timestamp) return "";
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const date = new Date(timestamp.seconds * 1000);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 

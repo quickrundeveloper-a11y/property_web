@@ -10,7 +10,7 @@ export default function FloatingChatButton() {
   const router = useRouter();
 
   const handleClick = () => {
-    if (!user || (user as any).isAnonymous) {
+    if (!user || user.isAnonymous) {
       router.push("/auth?fromContact=true");
       return;
     }

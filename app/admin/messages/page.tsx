@@ -9,7 +9,7 @@ interface Message {
   name: string;
   phone: string;
   message: string;
-  timestamp: any;
+  timestamp: { seconds: number; nanoseconds: number } | null;
   status: 'read' | 'unread';
   type: string;
   source: string;
@@ -76,10 +76,10 @@ export default function MessagesAdmin() {
     return message.status === filter;
   });
 
-  const formatTimestamp = (timestamp: any) => {
+  const formatTimestamp = (timestamp: { seconds: number; nanoseconds: number } | null) => {
     if (!timestamp) return "Unknown time";
     try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      const date = new Date(timestamp.seconds * 1000);
       return date.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
     } catch {
       return "Invalid date";

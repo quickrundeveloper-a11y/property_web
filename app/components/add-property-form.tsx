@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { db, storage, auth } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -61,7 +62,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
   const standardizeImage = (file: File, targetWidth = 1200, targetHeight = 900): Promise<File> => {
     return new Promise((resolve) => {
       // Always standardize to fixed dimensions using canvas
-      const img = new Image();
+      const img = new window.Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
         canvas.width = targetWidth;
@@ -232,7 +233,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         }
       });
     }
-  }, [mapsReady]);
+  }, [mapsReady, formData.lat, formData.lng]);
   
   const handleFilesAdd = (files: File[]) => {
     setImages(prev => {
@@ -257,7 +258,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
           await signInAnonymously(auth);
         }
       } catch (authError) {
-        console.log("Authentication not required or already authenticated");
+        console.log("Authentication not required or already authenticated", authError);
       }
       const sellerId = auth.currentUser?.uid || null;
 
@@ -276,8 +277,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
                 const pct = Math.round((snapshot.bytesTransferred / Math.max(snapshot.totalBytes, 1)) * 100);
                 setUploadProgress(pct);
               },
-              async (_error: unknown) => {
+              async (err) => {
                 try {
+                  console.error("Upload error:", err);
                   await signInAnonymously(auth);
                   const snapshot2 = await uploadBytes(storageRef, toUpload);
                   const url2 = await getDownloadURL(snapshot2.ref);
@@ -688,11 +690,11 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
             <div className="flex gap-2 overflow-x-auto pb-2">
               {previewUrls.map((url, idx) => (
                 <div key={idx} className="relative flex-shrink-0 w-20 h-20 rounded-md overflow-hidden border border-gray-200">
-                  <img src={url} alt={`preview-${idx + 1}`} className="w-full h-full object-cover" />
+                  <Image src={url} alt={`preview-${idx + 1}`} fill className="object-cover" />
                   <button
                     type="button"
                     onClick={() => removeImageAt(idx)}
-                    className="absolute top-1 right-1 bg-black/50 text-white text-[10px] px-1 py-0.5 rounded"
+                    className="absolute top-1 right-1 z-10 bg-black/50 text-white text-[10px] px-1 py-0.5 rounded"
                   >
                     ×
                   </button>

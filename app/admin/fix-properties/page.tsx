@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { db, auth } from "@/lib/firebase";
-import { collection, getDocs, updateDoc, doc, writeBatch } from "firebase/firestore";
+import { collection, getDocs, doc, writeBatch } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 export default function FixPropertiesPage() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState({ total: 0, missing: 0 });
   const [loading, setLoading] = useState(true);
@@ -73,8 +74,9 @@ export default function FixPropertiesPage() {
       } else {
         setLog((prev) => [...prev, "No properties needed updating."]);
       }
-    } catch (error: any) {
-      setLog((prev) => [...prev, `Error: ${error.message}`]);
+    } catch (error: unknown) {
+      const err = error as Error;
+      setLog((prev) => [...prev, `Error: ${err.message}`]);
     } finally {
       setProcessing(false);
     }
