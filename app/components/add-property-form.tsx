@@ -385,14 +385,14 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
   };
 
   return (
-    <form onSubmit={handleSubmit} className="text-white">
-      <h3 className="text-xl font-bold mb-4">List Your Property</h3>
+    <form onSubmit={handleSubmit} className="text-gray-900">
+      <h3 className="text-xl font-bold mb-4 text-[#000929]">List Your Property</h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm mb-1 text-white/80">I want to</label>
+          <label className="block text-sm mb-1 text-gray-600 font-medium">I want to</label>
           <select
-            className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 text-white [&>option]:text-black"
+            className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
             value={formData.type}
             onChange={e => setFormData({...formData, type: e.target.value as "rent" | "sell"})}
           >
@@ -401,9 +401,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
           </select>
         </div>
         <div>
-          <label className="block text-sm mb-1 text-white/80">Property Type</label>
+          <label className="block text-sm mb-1 text-gray-600 font-medium">Property Type</label>
           <select
-            className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 text-white [&>option]:text-black"
+            className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
             value={formData.propertyCategory}
             onChange={e => setFormData({...formData, propertyCategory: e.target.value})}
           >
@@ -418,11 +418,11 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       {/* Rent frequency removed as per new standardization */}
 
       <div className="mb-4">
-        <label className="block text-sm mb-1 text-white/80">Property Title</label>
+        <label className="block text-sm mb-1 text-gray-600 font-medium">Property Title</label>
         <input
           type="text"
           required
-          className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+          className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
           value={formData.title}
           onChange={e => setFormData({...formData, title: e.target.value})}
           placeholder="e.g. Luxury Villa"
@@ -431,13 +431,13 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div className="md:col-span-1">
-          <label className="block text-sm mb-1 text-white/80">Location</label>
+          <label className="block text-sm mb-1 text-gray-600 font-medium">Location</label>
           {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
             <input
               ref={autocompleteInputRef}
               type="text"
               required
-              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+              className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
               defaultValue={formData.location}
               onChange={e => setFormData({ ...formData, location: e.target.value })}
               placeholder="Search location"
@@ -446,7 +446,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
             <input
               type="text"
               required
-              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+              className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
               value={formData.location}
               onChange={e => setFormData({...formData, location: e.target.value})}
               placeholder="e.g. Mumbai, India"
@@ -454,18 +454,18 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
           )}
         </div>
         <div>
-          <label className="block text-sm mb-1 text-white/80">Price</label>
+          <label className="block text-sm mb-1 text-gray-600 font-medium">Price</label>
           <div className="grid grid-cols-[2fr,1fr] gap-2">
             <input
               type="number"
               required
-              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+              className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
               value={formData.price}
               onChange={e => setFormData({...formData, price: e.target.value})}
               placeholder="Amount"
             />
             <select
-              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 text-white [&>option]:text-black"
+              className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
               value={formData.priceUnit}
               onChange={e => setFormData({...formData, priceUnit: e.target.value})}
             >
@@ -478,7 +478,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
 
         {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
           <div className="col-span-1 md:col-span-2">
-            <div ref={mapContainerRef} className="mt-3 w-full h-80 rounded-lg overflow-hidden border border-white/30"></div>
+            <div ref={mapContainerRef} className="mt-3 w-full h-80 rounded-lg overflow-hidden border border-gray-300"></div>
           </div>
         )}
       </div>
@@ -486,11 +486,11 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       <div className={`grid ${formData.propertyCategory === "land" ? "grid-cols-1" : "grid-cols-3"} gap-4 mb-4`}>
         {formData.propertyCategory !== "land" && (
           <div>
-            <label className="block text-sm mb-1 text-white/80">Bedrooms</label>
+            <label className="block text-sm mb-1 text-gray-600 font-medium">Bedrooms</label>
             <input
               type="number"
               required
-              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+              className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
               value={formData.bedrooms}
               onChange={e => setFormData({...formData, bedrooms: e.target.value})}
               placeholder="Count"
@@ -499,11 +499,11 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         )}
         {formData.propertyCategory !== "land" && (
           <div>
-            <label className="block text-sm mb-1 text-white/80">Bathrooms</label>
+            <label className="block text-sm mb-1 text-gray-600 font-medium">Bathrooms</label>
             <input
               type="number"
               required
-              className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+              className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
               value={formData.bathrooms}
               onChange={e => setFormData({...formData, bathrooms: e.target.value})}
               placeholder="Count"
@@ -511,11 +511,11 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
           </div>
         )}
         <div>
-          <label className="block text-sm mb-1 text-white/80">Area</label>
+          <label className="block text-sm mb-1 text-gray-600 font-medium">Area</label>
           <input
             type="text"
             required
-            className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+            className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
             value={formData.area}
             onChange={e => setFormData({...formData, area: e.target.value})}
             placeholder="Size"
@@ -524,9 +524,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       </div>
 
       <div className="mb-4">
-        <label className="block text-sm mb-1 text-white/80">Units</label>
+        <label className="block text-sm mb-1 text-gray-600 font-medium">Units</label>
         <select
-          className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 text-white [&>option]:text-black"
+          className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
           value={formData.units}
           onChange={e => setFormData({...formData, units: e.target.value})}
         >
@@ -540,17 +540,17 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       </div>
 
       <div className="mb-4">
-        <label className="block text-sm mb-2 text-white/80">Features</label>
+        <label className="block text-sm mb-2 text-gray-600 font-medium">Features</label>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
           {[
             "Parking", "Swimming Pool", "Gym", "Garden", 
             "Balcony", "Elevator", "Security", "Power Backup", 
             "Water Supply", "Internet", "AC", "Furnished"
           ].map(feature => (
-            <label key={feature} className="flex items-center text-sm text-white/90 cursor-pointer hover:text-white transition-colors">
+            <label key={feature} className="flex items-center text-sm text-gray-700 cursor-pointer hover:text-gray-900 transition-colors">
               <input
                 type="checkbox"
-                className="mr-2 rounded accent-blue-500"
+                className="mr-2 rounded accent-[#0085FF]"
                 checked={formData.features.includes(feature)}
                 onChange={e => {
                   if (e.target.checked) {
@@ -566,7 +566,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         </div>
         <input
           type="text"
-          className="w-full p-3 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent placeholder-white/60 text-white"
+          className="w-full p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
           placeholder="Add custom features (press Enter to add)"
           onKeyPress={e => {
             if (e.key === 'Enter') {
@@ -581,15 +581,15 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         />
         {formData.features.length > 0 && (
           <div className="mt-3">
-            <p className="text-xs text-white/70 mb-2">Selected Features:</p>
+            <p className="text-xs text-gray-500 mb-2">Selected Features:</p>
             <div className="flex flex-wrap gap-2">
               {formData.features.map((feature, index) => (
-                <span key={index} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full text-sm flex items-center transition-colors">
+                <span key={index} className="bg-[#0085FF] hover:bg-[#006ACC] text-white px-3 py-1 rounded-full text-sm flex items-center transition-colors">
                   {feature}
                   <button
                     type="button"
                     onClick={() => setFormData({...formData, features: formData.features.filter((_, i) => i !== index)})}
-                    className="ml-2 text-white hover:text-red-300 font-bold transition-colors"
+                    className="ml-2 text-white hover:text-red-200 font-bold transition-colors"
                     title="Remove feature"
                   >
                     ×
@@ -602,9 +602,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       </div>
 
       <div className="mb-4">
-        <label className="block text-sm mb-1 text-white/80">Description</label>
+        <label className="block text-sm mb-1 text-gray-600 font-medium">Description</label>
         <textarea
-          className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60 h-24 resize-none"
+          className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 h-24 resize-none"
           value={formData.description}
           onChange={e => setFormData({...formData, description: e.target.value})}
           placeholder="Describe your property..."
@@ -613,22 +613,22 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm mb-1 text-white/80">Owner Name</label>
+          <label className="block text-sm mb-1 text-gray-600 font-medium">Owner Name</label>
           <input
             type="text"
             required
-            className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+            className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
             value={formData.OwnerName}
             onChange={e => setFormData({...formData, OwnerName: e.target.value})}
             placeholder="Enter full name"
           />
         </div>
         <div>
-          <label className="block text-sm mb-1 text-white/80">Email</label>
+          <label className="block text-sm mb-1 text-gray-600 font-medium">Email</label>
           <input
             type="email"
             required
-            className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+            className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
             value={formData.email}
             onChange={e => setFormData({...formData, email: e.target.value})}
             placeholder="Enter email address"
@@ -637,11 +637,11 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       </div>
 
       <div className="mb-4">
-        <label className="block text-sm mb-1 text-white/80">Contact Phone</label>
+        <label className="block text-sm mb-1 text-gray-600 font-medium">Contact Phone</label>
         <input
           type="tel"
           required
-          className="w-full p-2 rounded-lg bg-white/20 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60"
+          className="w-full p-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
           value={formData.phone}
           onChange={e => setFormData({...formData, phone: e.target.value})}
           placeholder="+91-XXXXXXXXXX"
@@ -649,7 +649,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm mb-1 text-white/80">Property Images</label>
+        <label className="block text-sm mb-1 text-gray-600 font-medium">Property Images</label>
         <input
           id="property-images-input"
           type="file"
@@ -665,29 +665,29 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
         <div className="flex items-center justify-between">
           <label
             htmlFor="property-images-input"
-            className="inline-block cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium border border-white/20"
+            className="inline-block cursor-pointer bg-[#0085FF] hover:bg-[#006ACC] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             Choose files
           </label>
           {images.length > 0 && (
-            <span className="text-sm text-white/70 ml-3">{images.length} selected</span>
+            <span className="text-sm text-gray-500 ml-3">{images.length} selected</span>
           )}
         </div>
         {images.length > 0 && (
           <div className="mt-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-white/80">{images.length} images selected</span>
+              <span className="text-sm text-gray-600">{images.length} images selected</span>
               <button
                 type="button"
                 onClick={() => setImages([])}
-                className="text-xs bg-white/20 hover:bg-white/30 text-white px-2 py-1 rounded-md border border-white/30"
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-md border border-gray-300"
               >
                 Clear
               </button>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2">
               {previewUrls.map((url, idx) => (
-                <div key={idx} className="relative flex-shrink-0 w-20 h-20 rounded-md overflow-hidden border border-white/30">
+                <div key={idx} className="relative flex-shrink-0 w-20 h-20 rounded-md overflow-hidden border border-gray-200">
                   <img src={url} alt={`preview-${idx + 1}`} className="w-full h-full object-cover" />
                   <button
                     type="button"
@@ -699,7 +699,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
                 </div>
               ))}
             </div>
-            <p className="text-xs text-white/60 mt-1">Tip: Ek baar me multiple images select karein ya drag & drop karein</p>
+            <p className="text-xs text-gray-400 mt-1">Tip: Select multiple images at once or drag & drop</p>
           </div>
         )}
         <div
@@ -711,21 +711,21 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess }: { d
             const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
             if (files.length) handleFilesAdd(files);
           }}
-          className="mt-3 border border-dashed border-white/30 rounded-lg p-3 text-white/70 bg-white/10"
+          className="mt-3 border-2 border-dashed border-gray-300 rounded-lg p-6 text-gray-500 bg-gray-50 hover:bg-gray-100 transition-colors text-center"
         >
-          Drag & drop images yahan chhodein
+          Drag & drop images here
         </div>
       </div>
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-[#0085FF] hover:bg-[#006ACC] text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? "Listing Property..." : "List Property Now"}
       </button>
       {loading && images.length > 0 && (
-        <p className="mt-2 text-center text-white/70 text-sm">Uploading images… {uploadProgress}%</p>
+        <p className="mt-2 text-center text-gray-600 text-sm">Uploading images… {uploadProgress}%</p>
       )}
     </form>
   );

@@ -9,7 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['system-ui', '-apple-system', 'sans-serif'],
+        sans: ['var(--font-lexend)', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
         background: 'var(--background)',

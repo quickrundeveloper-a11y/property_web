@@ -89,7 +89,7 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-gradient-to-r from-blue-400 to-blue-600 shadow-lg">
+    <header className="bg-[#57a8ff] shadow-lg border-b border-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -98,19 +98,19 @@ export default function Header() {
               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
                 <span className="text-blue-600 font-bold text-lg">🏠</span>
               </div>
-              <span className="text-white font-bold text-xl">Primenivaas</span>
+              <span className="text-white font-bold text-xl">Prime Nivaas</span>
             </Link>
           </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link href="/property?type=rent" className="text-white hover:text-blue-100 transition-colors">
+            <Link href="/home?filter=Rent" className="text-white hover:text-blue-100 transition-colors">
               Rent
             </Link>
-            <Link href="/property?type=buy" className="text-white hover:text-blue-100 transition-colors">
+            <Link href="/home?filter=Buy" className="text-white hover:text-blue-100 transition-colors">
               Buy
             </Link>
-            <Link href="/property?type=sell" className="text-white hover:text-blue-100 transition-colors">
+            <Link href="/home?filter=Sell" className="text-white hover:text-blue-100 transition-colors">
               Sell
             </Link>
             
@@ -218,7 +218,7 @@ export default function Header() {
                 </Link>
                 <Link
                   href="/auth?mode=signup"
-                  className="bg-blue-700 text-white px-4 py-2 rounded-md hover:bg-blue-800 transition-colors"
+                  className="bg-[#0085FF] text-white px-4 py-2 rounded-md hover:bg-[#006ACC] transition-colors"
                 >
                   Sign up
                 </Link>
@@ -248,19 +248,19 @@ export default function Header() {
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-blue-500 rounded-lg mt-2">
               <Link
-                href="/property?type=rent"
+                href="/home?filter=Rent"
                 className="text-white hover:text-blue-100 block px-3 py-2 rounded-md text-base font-medium"
               >
                 Rent
               </Link>
               <Link
-                href="/property?type=buy"
+                href="/home?filter=Buy"
                 className="text-white hover:text-blue-100 block px-3 py-2 rounded-md text-base font-medium"
               >
                 Buy
               </Link>
               <Link
-                href="/property?type=sell"
+                href="/home?filter=Sell"
                 className="text-white hover:text-blue-100 block px-3 py-2 rounded-md text-base font-medium"
               >
                 Sell
@@ -385,7 +385,7 @@ export default function Header() {
                     </Link>
                     <Link
                       href="/auth?mode=signup"
-                      className="bg-blue-700 text-white block text-center px-4 py-2 rounded-md hover:bg-blue-800 transition-colors"
+                      className="bg-[#0085FF] text-white block text-center px-4 py-2 rounded-md hover:bg-[#006ACC] transition-colors"
                     >
                       Sign up
                     </Link>

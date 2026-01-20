@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
+import { Lexend } from "next/font/google";
 import "./globals.css";
+
+const lexend = Lexend({
+  subsets: ["latin"],
+  variable: "--font-lexend",
+});
 import ConditionalLayout from "./conditional-layout";
 import { AuthProvider } from "@/lib/auth-context";
 import { ChatProvider } from "@/app/context/ChatContext";
@@ -24,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased" suppressHydrationWarning>
+      <body className={`${lexend.variable} antialiased font-sans`} suppressHydrationWarning>
         <AuthProvider>
           <ChatProvider>
             <ConditionalLayout>
