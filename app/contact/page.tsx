@@ -2,16 +2,20 @@
 
 import { useState } from "react";
 import { Mail, Phone, MapPin, Send, MessageSquare } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    phone: "",
     subject: "",
     message: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -21,13 +25,29 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
     
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    setIsSubmitting(false);
-    setSubmitted(true);
-    setFormData({ name: "", email: "", subject: "", message: "" });
+    try {
+      await addDoc(collection(db, "property_All", "main", "messages"), {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || "N/A",
+        subject: formData.subject,
+        message: formData.message,
+        timestamp: serverTimestamp(),
+        status: 'unread',
+        type: 'contact_form',
+        source: 'website'
+      });
+      
+      setSubmitted(true);
+      setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+    } catch (err) {
+      console.error("Error sending message:", err);
+      setError("Failed to send message. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -37,7 +57,7 @@ export default function ContactPage() {
         <div className="text-center mb-16">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Get in Touch</h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Have questions about buying, selling, or renting? We're here to help you every step of the way.
+            Have questions about buying, selling, or renting? We&apos;re here to help you every step of the way.
           </p>
         </div>
 
@@ -55,9 +75,9 @@ export default function ContactPage() {
                   <div>
                     <h4 className="font-semibold text-gray-900">Our Office</h4>
                     <p className="text-gray-600 mt-1">
-                      123 Property Lane<br />
-                      Mumbai, Maharashtra 400001<br />
-                      India
+                      407, A-16 I-thum Height<br />
+                      Sector 62, Noida<br />
+                      Uttar Pradesh
                     </p>
                   </div>
                 </div>
@@ -80,7 +100,7 @@ export default function ContactPage() {
                   <div>
                     <h4 className="font-semibold text-gray-900">Email</h4>
                     <p className="text-gray-600 mt-1">support@primenivaas.com</p>
-                    <p className="text-sm text-gray-500 mt-1">We'll respond within 24 hours</p>
+                    <p className="text-sm text-gray-500 mt-1">We&apos;ll respond within 24 hours</p>
                   </div>
                 </div>
               </div>
@@ -129,6 +149,11 @@ export default function ContactPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {error && (
+                    <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">
+                      {error}
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -160,6 +185,21 @@ export default function ContactPage() {
                         placeholder="john@example.com"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number (Optional)
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                      placeholder="+91 98765 43210"
+                    />
                   </div>
 
                   <div>

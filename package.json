@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy": "npx vercel --prod"
   },
   "dependencies": {
     "firebase": "^12.7.0",
