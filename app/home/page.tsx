@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { collection, getDocs, orderBy, query, addDoc, deleteDoc, doc, where, serverTimestamp, onSnapshot, setDoc, runTransaction } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,7 +10,7 @@ import { Users, Key, Building2, Search as SearchIcon, Home as HomeIcon, ShieldCh
 
 import AddPropertyForm from "../components/add-property-form";
 
-export default function Home() {
+function HomeContent() {
   const [activeTab, setActiveTab] = useState("Rent");
   const [searchQuery, setSearchQuery] = useState("");
   const [properties, setProperties] = useState<any[]>([]);
@@ -298,212 +298,11 @@ export default function Home() {
     setShowLocationSuggestions(false);
   };
 
-  // Load user's favorite properties
-  const loadFavorites = async () => {
-    if (!user) {
-      setFavoriteProperties(new Set());
-      return;
-    }
-    try {
-      const favoritesQuery = collection(db, "property_All", "main", "users", user.uid, "favorites");
-      const snapshot = await getDocs(favoritesQuery);
-      const favoriteIds = new Set(snapshot.docs.map(doc => doc.id));
-      setFavoriteProperties(favoriteIds);
-      console.log(`Loaded ${favoriteIds.size} favorites from Firebase for user ${user.uid}`);
-    } catch (error) {
-      console.error("Error loading favorites from Firebase:", error);
-    }
-  };
-
-  // Toggle favorite status
-  const toggleFavorite = async (propertyId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
-    
-    // Validate inputs
-    if (!propertyId) {
-      console.error("Invalid parameters for toggleFavorite");
-      return;
-    }
-
-    if (!user) {
-        router.push("/auth");
-        return;
-    }
-    
-    const isFavorite = favoriteProperties.has(propertyId);
-
-    try {
-      if (isFavorite) {
-        // Remove from favorites
-        await deleteDoc(doc(db, "property_All", "main", "users", user.uid, "favorites", propertyId));
-        console.log(`Removed property ${propertyId} from Firebase favorites`);
-      } else {
-        // Add to favorites
-        await setDoc(doc(db, "property_All", "main", "users", user.uid, "favorites", propertyId), {
-          propertyId: propertyId,
-          userId: user.uid,
-          createdAt: serverTimestamp()
-        });
-        console.log(`Added property ${propertyId} to Firebase favorites`);
-      }
-      
-      // Update local state
-      setFavoriteProperties(prev => {
-        const next = new Set(prev);
-        if (isFavorite) {
-          next.delete(propertyId);
-        } else {
-          next.add(propertyId);
-        }
-        return next;
-      });
-      
-    } catch (error) {
-      console.error("Firebase error:", error);
-    }
-
-    // Show visual feedback
-    try {
-      const heartButton = e.currentTarget as HTMLElement;
-      if (heartButton && heartButton.style) {
-        heartButton.style.transform = isFavorite ? 'scale(0.8)' : 'scale(1.2)';
-        setTimeout(() => {
-          if (heartButton && heartButton.style) {
-            heartButton.style.transform = 'scale(1)';
-          }
-        }, 150);
-      }
-    } catch (animationError) {
-      // Ignore animation errors - they're not critical
-      console.log("Animation error (non-critical):", animationError);
-    }
-  };
-
-
-
-  const fetchProperties = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const q = query(
-        collection(db, "property_All", "main", "properties"),
-        orderBy("createdAt", "desc")
-      );
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map((doc) => {
-        const docData = doc.data();
-        return {
-          id: doc.id,
-          ...docData,
-          // Ensure required fields exist
-          title: docData.title || docData.name || 'Property',
-          location: docData.location || docData.address || 'Location',
-          price: docData.price || docData.rent || docData.cost || 25000,
-          bedrooms: docData.bedrooms || docData.beds || 3,
-          bathrooms: docData.bathrooms || docData.baths || 2,
-          area: docData.area || docData.sqft || '5x7',
-          priceUnit: docData.priceUnit || docData.price_unit || 'per_month',
-          phone: docData.phone || docData.contact || '+91-9876543210',
-          images: Array.isArray(docData.images) ? docData.images : (docData.image ? [docData.image] : []),
-          image: docData.images?.[0] || docData.image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
-        };
-      }).filter(property => property && property.id);
-
-      console.log("Firebase Properties Data:", data);
-      console.log("Number of properties found:", data.length);
-      
-      // Debug: Log each property's image data
-      data.forEach((property: any, index: number) => {
-        console.log(`Property ${index + 1} (${property.title || property.name || 'Unnamed'}):`, {
-          id: property.id,
-          images: property.images,
-          image: property.image,
-          hasImages: !!property.images,
-          hasImage: !!property.image,
-          imagesLength: property.images?.length || 0,
-          firstImage: property.images?.[0] || property.image,
-          phone: property.phone,
-          contact: property.contact,
-          allKeys: Object.keys(property).sort()
-        });
-      });
-
-      setProperties(data);
-    } catch (error) {
-      console.error("Error fetching properties:", error);
-      setError("Failed to load properties from Firebase");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getPriceSuffix = (item: any) => {
-    const unit = String(item?.priceUnit || '').toLowerCase();
-    if (unit === 'per_year') return '/year';
-    if (unit === 'per_sqft') return '/sq ft';
-    return '/month';
-  };
-
-  const isPlotType = (item: any) => {
-    const cat = String(item?.propertyCategory || item?.category || '').toLowerCase();
-    const t = String(item?.type || item?.propertyType || '').toLowerCase();
-    return cat.includes('land') || cat.includes('plot') || t.includes('plot');
-  };
-
-  const matchesActiveType = (item: any) => {
-    if (activeTab === 'Buy') return true; // Buy shows both Rent and Sell (All)
-
-    const unit = String(item?.priceUnit || '').toLowerCase();
-    const rawType = String(item?.type || item?.propertyType || item?.propertyCategory || item?.category || '').toLowerCase();
-    
-    const isPlot = isPlotType(item);
-    
-    const isRent = unit === 'per_month' || unit === 'per_year' || rawType.includes('rent');
-    const isSale = isPlot || unit === 'per_sqft' || rawType.includes('buy') || rawType.includes('sale') || rawType.includes('sell');
-
-    if (activeTab === 'Rent') return isRent;
-    if (activeTab === 'Sell') return isSale;
-    
-    return true;
-  };
-
-  const getTypeLabel = (item: any) => {
-    if (isPlotType(item)) return 'POPULAR';
-    const unit = String(item?.priceUnit || '').toLowerCase();
-    const raw = String(item?.type || item?.propertyType || item?.propertyCategory || item?.category || '').toLowerCase();
-    if (unit === 'per_month' || unit === 'per_year' || raw.includes('rent')) return 'For Rent';
-    if (unit === 'per_sqft' || raw.includes('buy') || raw.includes('sale') || raw.includes('sell')) return 'For Sale';
-    return 'Property';
-  };
-
-  useEffect(() => {
-    fetchProperties();
-  }, []);
-
-  useEffect(() => {
-    loadFavorites(); // Load user's favorites
-  }, [user]);
-
-  useEffect(() => {
-    const q = query(collection(db, "property_All", "main", "properties"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setProperties(data);
-      setLoading(false);
-    }, (err) => {
-      console.error("Realtime properties error:", err);
-      setError("Failed to subscribe to properties");
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
-
-  // Close suggestions when clicking outside
+  // Add event listener to close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.location-container')) {
+      if (!target.closest('.location-search-container')) {
         setShowLocationSuggestions(false);
       }
     };
@@ -514,25 +313,68 @@ export default function Home() {
     };
   }, []);
 
+  // Fetch properties from Firestore
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "property_All", "main", "properties"));
+        const propertiesData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setProperties(propertiesData);
+      } catch (err) {
+        console.error("Error fetching properties:", err);
+        setError("Failed to load properties. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProperties();
+  }, []);
+
+  // Toggle Favorite
+  const toggleFavorite = (propertyId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    setFavoriteProperties(prev => {
+      const newFavorites = new Set(prev);
+      if (newFavorites.has(propertyId)) {
+        newFavorites.delete(propertyId);
+      } else {
+        newFavorites.add(propertyId);
+      }
+      return newFavorites;
+    });
+  };
+
+  // Filter properties based on active tab and search query
   const filteredProperties = properties.filter(property => {
-    if (!property || !property.id) return false;
-    if (!matchesActiveType(property)) return false;
-    
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase().trim();
-      const title = (property.title || property.name || '').toLowerCase();
-      const location = (property.location || property.address || '').toLowerCase();
-      const price = (property.price || property.rent || property.cost || '').toString();
-      const type = (property.type || property.propertyType || '').toLowerCase();
-      
-      return title.includes(q) || location.includes(q) || price.includes(q) || type.includes(q);
-    }
-    
-    return true;
+    // Filter by type (Rent/Buy/Sell)
+    const matchesType = activeTab === "Rent" 
+      ? (property.type === "Rent" || property.status === "For Rent")
+      : activeTab === "Buy"
+      ? (property.type === "Sale" || property.status === "For Sale")
+      : true; // Sell tab shows add property CTA, handled separately
+
+    // Filter by search query
+    const matchesSearch = searchQuery === "" || 
+      (property.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+       property.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       property.address?.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return matchesType && matchesSearch;
   });
 
+  const getPriceSuffix = (property: any) => {
+    if (property.type === "Rent" || property.status === "For Rent") {
+      return "/month";
+    }
+    return "";
+  };
+
   return (
-    <div className="min-h-screen bg-[#f4f8fc]">
+    <div className="min-h-screen bg-white font-sans">
       {/* HERO SECTION */}
       <section className="bg-gradient-to-b from-[#0085FF] via-[#0085FF] via-50% to-[#0085FF]/0 text-white relative overflow-hidden min-h-[calc(100vh-64px)] flex flex-col lg:flex-row items-center">
         <div className="max-w-7xl mx-auto px-4 py-8 lg:py-20 w-full relative z-10 order-2 lg:order-1">
@@ -595,13 +437,6 @@ export default function Home() {
                 </button>
               </div>
 
-              {activeTab === "AddProperty" && (
-                <AddPropertyForm defaultType="sell" onSuccess={() => {
-                  setActiveTab("Rent");
-                  fetchProperties();
-                }} />
-              )}
-
               {/* Stats */}
               <div className="flex flex-wrap justify-center lg:justify-start gap-12 lg:gap-24 mt-20">
                 <div className="flex flex-col gap-6 items-center lg:items-start">
@@ -658,11 +493,12 @@ export default function Home() {
           </div>
         </div>
       </section>
-      {/* FEATURES SECTION */}
-      <section className="py-20 bg-[#F5F9FF]">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* Property Insurance */}
+
+      {/* FEATURE CARDS - New Design */}
+      <section className="bg-white py-16 -mt-8 relative z-20">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid md:grid-cols-2 gap-8 lg:gap-16">
+            {/* Virtual Tours */}
             <div className="flex flex-col gap-4">
               <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF]">
                 <HomeIcon className="w-8 h-8 text-[#0085FF]" />
@@ -670,32 +506,8 @@ export default function Home() {
                    <ShieldCheck className="w-3 h-3 text-white" />
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-[#000929]">Property Insurance</h3>
-              <p className="text-[#000929]/60 text-sm leading-relaxed">We offer our customer property protection of liability coverage and insurance for their better life.</p>
-            </div>
-
-            {/* Best Price */}
-            <div className="flex flex-col gap-4">
-              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF]">
-                <CircleDollarSign className="w-8 h-8 text-[#0085FF]" />
-                <div className="absolute -bottom-1 -right-1 bg-[#0085FF] p-1.5 rounded-full border-2 border-white">
-                   <Percent className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <h3 className="text-xl font-bold text-[#000929]">Best Price</h3>
-              <p className="text-[#000929]/60 text-sm leading-relaxed">Not sure what you should be charging for your property? No need to worry, let us do the numbers for you.</p>
-            </div>
-
-            {/* Lowest Commission */}
-            <div className="flex flex-col gap-4">
-              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF]">
-                <BadgePercent className="w-8 h-8 text-[#0085FF]" />
-                <div className="absolute -bottom-1 -right-1 bg-[#0085FF] p-1.5 rounded-full border-2 border-white">
-                   <DollarSign className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <h3 className="text-xl font-bold text-[#000929]">Lowest Commission</h3>
-              <p className="text-[#000929]/60 text-sm leading-relaxed">You no longer have to negotiate commissions and haggle with other agents it only cost 2%!</p>
+              <h3 className="text-xl font-bold text-[#000929]">Virtual home tour</h3>
+              <p className="text-[#000929]/60 text-sm leading-relaxed">You can communicate directly with landlords and we provide you with virtual tour before you buy or rent the property.</p>
             </div>
 
             {/* Overall Control */}
@@ -985,5 +797,15 @@ export default function Home() {
 
       {/* Floating SMS Widget */}
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
