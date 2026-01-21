@@ -21,7 +21,7 @@ export default function BlogPage() {
       author: "Michael Chen",
       date: "Jan 12, 2026",
       category: "Trends",
-      image: "https://images.unsplash.com/photo-1558036117-15db5275d42b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
       slug: "future-real-estate-smart-homes"
     },
     {
@@ -41,7 +41,7 @@ export default function BlogPage() {
       author: "David Wilson",
       date: "Jan 05, 2026",
       category: "Design",
-      image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4f9d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
       slug: "interior-design-trends-2026"
     },
     {
