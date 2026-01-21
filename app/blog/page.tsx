@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Calendar, User, ArrowRight } from 'lucide-react';
 
 export default function BlogPage() {
@@ -80,10 +81,12 @@ export default function BlogPage() {
         {/* Featured Post (First one) */}
         <div className="mb-16">
           <div className="relative h-96 rounded-2xl overflow-hidden shadow-xl group">
-            <img 
+            <Image 
               src={blogPosts[0].image} 
               alt={blogPosts[0].title}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              fill
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
+              priority
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
             <div className="absolute bottom-0 left-0 p-8 sm:p-12 text-white max-w-3xl">
@@ -115,10 +118,12 @@ export default function BlogPage() {
           {blogPosts.slice(1).map((post) => (
             <article key={post.id} className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden border border-gray-100 flex flex-col h-full">
               <div className="relative h-56 overflow-hidden">
-                <img 
+                <Image 
                   src={post.image} 
                   alt={post.title}
-                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                  fill
+                  className="object-cover transition-transform duration-500 hover:scale-105"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 />
                 <div className="absolute top-4 left-4">
                   <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-blue-800 text-xs font-bold rounded-full shadow-sm">
