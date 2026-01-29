@@ -1,0 +1,76 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import AddPropertyForm from "@/app/components/add-property-form";
+import { ArrowLeft } from "lucide-react";
+
+export default function EditPropertyPage() {
+  const params = useParams();
+  const router = useRouter();
+  const id = params?.id as string;
+  const [property, setProperty] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchProperty = async () => {
+      try {
+        const docRef = doc(db, "property_All", "main", "properties", id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setProperty(docSnap.data());
+        } else {
+          alert("Property not found");
+          router.push("/manage/dashboard");
+        }
+      } catch (error) {
+        console.error("Error fetching property:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProperty();
+  }, [id, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!property) return null;
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-12">
+      <div className="bg-white border-b sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+          <button 
+            onClick={() => router.back()}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <ArrowLeft className="w-6 h-6 text-gray-600" />
+          </button>
+          <h1 className="text-xl font-bold text-gray-900">Edit Property</h1>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <AddPropertyForm 
+            defaultType={property.type} 
+            initialData={property} 
+            propertyId={id}
+            onSuccess={() => router.push("/manage/dashboard")}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,37 @@
+export interface Property {
+  id: string;
+  title?: string;
+  name?: string;
+  location?: string;
+  address?: string;
+  price?: number | string;
+  rent?: number | string;
+  cost?: number | string;
+  images?: string[];
+  image?: string;
+  bedrooms?: number;
+  beds?: number;
+  bathrooms?: number;
+  baths?: number;
+  area?: string | number;
+  sqft?: string | number;
+  type?: string;
+  listingType?: string;
+  propertyType?: string;
+  status?: string;
+  priceUnit?: string;
+  price_unit?: string;
+  propertyCategory?: string;
+  category?: string;
+  sellerId?: string;
+  ownerId?: string;
+  userId?: string;
+  contactName?: string;
+  sellerName?: string;
+  createdAt?: { seconds: number; nanoseconds: number } | null;
+  description?: string;
+  areaUnit?: string;
+  area_unit?: string;
+  phone?: string;
+  contact?: string;
+}
