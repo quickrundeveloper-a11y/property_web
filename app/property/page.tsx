@@ -25,7 +25,7 @@ function PropertySearchContent() {
   const typeOptions = [
     { value: "rent", label: "For Rent" },
     { value: "buy", label: "For Sale" },
-    { value: "sell", label: "Post Property" },
+    { value: "sell", label: "Sell Property" },
   ];
 
   const normalizeType = (value: unknown) => {
@@ -364,7 +364,7 @@ function PropertySearchContent() {
                         <svg className="w-4 h-4 mr-1 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M3 4a1 1 0 000 2v9a2 2 0 002 2h6a2 2 0 002-2V6a1 1 0 100-2H3zm6 2a1 1 0 00-1 1v6a1 1 0 102 0V7a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
-                        {property.area || "2000"} sq ft
+                        {property.area || "2000"} {String((property as any).units || '').toLowerCase() || 'sq ft'}
                       </div>
                     </div>
                   </div>

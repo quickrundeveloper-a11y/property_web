@@ -32,6 +32,8 @@ type AutocompleteLike = {
 export default function AddPropertyForm({ defaultType = "sell", onSuccess, initialData, propertyId }: { defaultType?: "rent" | "sell", onSuccess?: () => void, initialData?: any, propertyId?: string }) {
   const [loading, setLoading] = useState(false);
   const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [video, setVideo] = useState<File | null>(null);
+  const [existingVideo, setExistingVideo] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     location: "",
@@ -77,6 +79,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
       });
       if (initialData.images) {
         setExistingImages(initialData.images);
+      }
+      if (initialData.videoUrl) {
+        setExistingVideo(initialData.videoUrl);
       }
     }
   }, [initialData, defaultType]);
@@ -464,6 +469,24 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
       const imageUrls = results;
       // Ensure unique, non-empty URLs
       const allImages = [...existingImages, ...imageUrls.filter((u): u is string => !!u)];
+      // Upload video if selected
+      let finalVideoUrl = existingVideo;
+      if (video) {
+        const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}-${video.name}`;
+        const storageRef = ref(storage, `property_video/${unique}`);
+        try {
+          const snapshot = await uploadBytes(storageRef, video);
+          finalVideoUrl = await getDownloadURL(snapshot.ref);
+        } catch (error) {
+          try {
+            await signInAnonymously(auth);
+            const snapshot2 = await uploadBytes(storageRef, video);
+            finalVideoUrl = await getDownloadURL(snapshot2.ref);
+          } catch {
+            finalVideoUrl = existingVideo ?? null;
+          }
+        }
+      }
       const validUrls = Array.from(new Set(allImages));
 
       // Allow property creation even if no images uploaded (use placeholder)
@@ -492,6 +515,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         propertyType: formData.propertyType,
         propertyCategory: formData.propertyCategory,
         images: validUrls,
+        videoUrl: finalVideoUrl || null,
         sellerId,
         status: "active" as const
       };
@@ -532,6 +556,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         });
         setImages([]);
         setExistingImages([]);
+        setVideo(null);
+        setExistingVideo(null);
       }
 
     } catch (error) {
@@ -553,7 +579,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           value={formData.type}
           onChange={e => setFormData({...formData, type: e.target.value as "rent" | "sell"})}
         >
-          <option value="sell">Post Property</option>
+          <option value="sell">Sell Property</option>
           <option value="rent">Rent Out Property</option>
         </select>
       </div>
@@ -874,6 +900,57 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           onChange={e => setFormData({...formData, phone: e.target.value})}
           placeholder="+91-XXXXXXXXXX"
         />
+      </div>
+
+      <div className="mb-6">
+        <label className="block text-sm mb-1 text-gray-600 font-medium">Property Video (Optional)</label>
+        <input
+          id="property-video-input"
+          type="file"
+          accept="video/*"
+          onChange={e => {
+            if (e.target.files && e.target.files[0]) {
+              setVideo(e.target.files[0]);
+            }
+          }}
+          className="hidden"
+        />
+        <div className="flex items-center justify-between">
+          <label
+            htmlFor="property-video-input"
+            className="inline-block cursor-pointer bg-[#0085FF] hover:bg-[#006ACC] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            Choose video
+          </label>
+          {(video || existingVideo) && (
+            <div className="flex items-center gap-3">
+              {video && <span className="text-sm text-gray-600 truncate max-w-[200px]">{video.name}</span>}
+              {!video && existingVideo && <span className="text-sm text-gray-600 truncate max-w-[200px]">Existing video</span>}
+              <button
+                type="button"
+                onClick={() => { setVideo(null); setExistingVideo(null); }}
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-md border border-gray-300"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+        {(video || existingVideo) && (
+          <div className="mt-3">
+            {existingVideo && !video && (
+              <div className="relative w-full max-w-xs aspect-video bg-black rounded-md overflow-hidden">
+                <video src={existingVideo} controls className="w-full h-full object-contain" />
+              </div>
+            )}
+            {video && (
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-sm text-gray-900 font-medium truncate">{video.name}</p>
+                <p className="text-xs text-gray-500">{(video.size / (1024 * 1024)).toFixed(2)} MB</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mb-6">

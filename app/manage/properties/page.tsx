@@ -215,7 +215,7 @@ export default function MyProperties() {
                     <div className="flex items-center gap-1">
                       <Square className="w-3.5 h-3.5 text-[#0066FF]" />
                       <span className="text-[10px]">
-                        <span className="font-bold text-gray-700">{property.area || property.sqft || "5x7"}</span> {property.areaUnit || property.priceUnit === 'per_sqft' ? 'sqft' : 'm²'}
+                        <span className="font-bold text-gray-700">{property.area || property.sqft || "5x7"}</span> {String((property as any).units || property.areaUnit || property.area_unit || 'sqft').toLowerCase()}
                       </span>
                     </div>
                   </div>
