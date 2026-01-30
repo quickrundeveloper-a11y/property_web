@@ -25,7 +25,7 @@ function PropertySearchContent() {
   const typeOptions = [
     { value: "rent", label: "For Rent" },
     { value: "buy", label: "For Sale" },
-    { value: "sell", label: "Post Property" },
+    { value: "sell", label: "Sell Property" },
   ];
 
   const normalizeType = (value: unknown) => {
@@ -157,13 +157,29 @@ function PropertySearchContent() {
 
   const getPriceSuffix = (p: Property) => {
     const unit = String(p.priceUnit || '').toLowerCase();
-    if (unit === 'per_year') return '/year';
-    if (unit === 'per_sqft') return '/sq ft';
-    if (unit === 'per_sqm') return '/sq m';
-    if (unit === 'per_acre') return '/acre';
-    if (unit === 'per_bigha') return '/bigha';
-    if (unit === 'per_katha') return '/katha';
-    if (unit === 'per_gaj') return '/gaj';
+    const map: Record<string, string> = {
+      per_month: '/month',
+      per_year: '/year',
+      per_sqft: '/sq ft',
+      per_sqyards: '/sq yards',
+      per_sqm: '/sq m',
+      per_acre: '/acre',
+      per_marla: '/marla',
+      per_cents: '/cents',
+      per_bigha: '/bigha',
+      per_kottah: '/kottah',
+      per_kanal: '/kanal',
+      per_grounds: '/grounds',
+      per_ares: '/ares',
+      per_biswa: '/biswa',
+      per_guntha: '/guntha',
+      per_aankadam: '/aankadam',
+      per_hectares: '/hectares',
+      per_rood: '/rood',
+      per_chataks: '/chataks',
+      per_perch: '/perch'
+    };
+    if (map[unit]) return map[unit];
     if (normalizeType(p.type) === 'rent') return '/month';
     return '';
   };
@@ -364,7 +380,7 @@ function PropertySearchContent() {
                         <svg className="w-4 h-4 mr-1 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M3 4a1 1 0 000 2v9a2 2 0 002 2h6a2 2 0 002-2V6a1 1 0 100-2H3zm6 2a1 1 0 00-1 1v6a1 1 0 102 0V7a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
-                        {property.area || "2000"} sq ft
+                        {property.area || "2000"} {String((property as any).units || '').toLowerCase() || 'sq ft'}
                       </div>
                     </div>
                   </div>

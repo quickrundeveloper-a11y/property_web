@@ -26,7 +26,8 @@ import {
   Info,
   ShieldCheck,
   X,
-  ImageIcon
+  ImageIcon,
+  Video
 } from "lucide-react";
 
 interface Property {
@@ -40,6 +41,7 @@ interface Property {
   bathrooms?: number;
   size?: string;
   area?: string;
+  units?: string;
   propertyCategory?: string;
   amenities?: string[];
   features: string[];
@@ -47,6 +49,7 @@ interface Property {
   image: string;
   images?: string[];
   description?: string;
+  videoUrl?: string;
   type?: string;
   developer?: string;
   project?: string;
@@ -272,21 +275,72 @@ export default function PropertyDetails() {
     );
   }
 
-  const allImages = property.images || [property.image];
+  const images = property?.images && property.images.length > 0 ? property.images : (property?.image ? [property.image] : []);
+  const mediaItems = [
+    ...images.map(url => ({ type: 'image' as const, url })),
+    ...(property?.videoUrl ? [{ type: 'video' as const, url: property.videoUrl }] : [])
+  ];
+
+  const displayedIndex = mediaItems.length > 0
+    ? Math.min(selectedImageIndex, mediaItems.length - 1)
+    : 0;
 
   const getPriceSuffix = () => {
     const unit = String(property.priceUnit || '').toLowerCase();
-    if (unit === 'per_year') return '/year';
-    if (unit === 'per_sqft') return '/sq ft';
-    if (unit === 'per_sqm') return '/sq m';
-    if (unit === 'per_acre') return '/acre';
-    if (unit === 'per_bigha') return '/bigha';
-    if (unit === 'per_katha') return '/katha';
-    if (unit === 'per_gaj') return '/gaj';
-    return '/month';
+    const map: Record<string, string> = {
+      per_month: '/month',
+      per_year: '/year',
+      per_sqft: '/sq ft',
+      per_sqyards: '/sq yards',
+      per_sqm: '/sq m',
+      per_acre: '/acre',
+      per_marla: '/marla',
+      per_cents: '/cents',
+      per_bigha: '/bigha',
+      per_kottah: '/kottah',
+      per_kanal: '/kanal',
+      per_grounds: '/grounds',
+      per_ares: '/ares',
+      per_biswa: '/biswa',
+      per_guntha: '/guntha',
+      per_aankadam: '/aankadam',
+      per_hectares: '/hectares',
+      per_rood: '/rood',
+      per_chataks: '/chataks',
+      per_perch: '/perch'
+    };
+    return map[unit] || '/month';
   };
 
-  const isLand = String(property.propertyCategory || "").toLowerCase() === "land";
+  const category = String(property.propertyCategory || "").toLowerCase();
+  const isLand = category.includes("land") || category.includes("plot");
+  const getAreaUnitLabel = () => {
+    const unit = String(property.units || '').toLowerCase();
+    if (unit) {
+      const map: Record<string, string> = {
+        sqft: 'Sq Ft',
+        sqm: 'Sq M',
+        sqyards: 'Sq Yards',
+        acres: 'Acres',
+        marla: 'Marla',
+        cents: 'Cents',
+        bigha: 'Bigha',
+        kottah: 'Kottah',
+        kanal: 'Kanal',
+        grounds: 'Grounds',
+        ares: 'Ares',
+        biswa: 'Biswa',
+        guntha: 'Guntha',
+        aankadam: 'Aankadam',
+        hectares: 'Hectares',
+        rood: 'Rood',
+        chataks: 'Chataks',
+        perch: 'Perch'
+      };
+      return map[unit] || unit;
+    }
+    return 'Sq Ft';
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -349,18 +403,26 @@ export default function PropertyDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Left Column - Property Info */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Image Gallery */}
+            {/* Media Gallery */}
             <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="relative group w-full aspect-[4/3] md:h-[600px] md:aspect-auto">
-                <Image
-                  src={allImages[selectedImageIndex] || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6"}
-                  alt={property.title}
-                  fill
-                  className="object-cover transition-transform duration-700 cursor-pointer"
-                  onClick={() => setShowAllPhotos(true)}
-                />
+                {mediaItems[displayedIndex]?.type === 'video' ? (
+                  <video
+                    src={mediaItems[displayedIndex].url}
+                    controls
+                    className="w-full h-full object-cover bg-black"
+                  />
+                ) : (
+                  <Image
+                    src={mediaItems[displayedIndex]?.url || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6"}
+                    alt={property.title}
+                    fill
+                    className="object-cover transition-transform duration-700 cursor-pointer"
+                    onClick={() => setShowAllPhotos(true)}
+                  />
+                )}
                 
-                <div className="absolute top-6 left-6 flex gap-2">
+                <div className="absolute top-6 left-6 flex gap-2 pointer-events-none">
                   <span className="bg-white/90 backdrop-blur-md text-slate-900 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">
                     {property.type || "For Rent"}
                   </span>
@@ -371,19 +433,19 @@ export default function PropertyDetails() {
                   )}
                 </div>
 
-                {allImages.length > 1 && (
-                  <div className="absolute bottom-6 right-6 bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2">
+                {mediaItems.length > 1 && (
+                  <div className="absolute bottom-6 right-6 bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 pointer-events-none">
                     <ImageIcon className="w-4 h-4" />
-                    {selectedImageIndex + 1} / {allImages.length} Photos
+                    {displayedIndex + 1} / {mediaItems.length}
                   </div>
                 )}
               </div>
 
               {/* Thumbnail Gallery */}
-              {allImages.length > 1 && (
+              {mediaItems.length > 1 && (
                 <div className="p-4 bg-slate-50 border-t border-slate-100">
                   <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
-                    {allImages.map((image, index) => (
+                    {mediaItems.map((item, index) => (
                       <button
                         key={index}
                         onClick={() => setSelectedImageIndex(index)}
@@ -393,12 +455,18 @@ export default function PropertyDetails() {
                             : "border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-300"
                         }`}
                       >
-                        <Image
-                          src={image}
-                          alt={`${property.title} ${index + 1}`}
-                          fill
-                          className="object-cover"
-                        />
+                        {item.type === 'video' ? (
+                          <div className="w-full h-full flex items-center justify-center bg-slate-900 text-white">
+                            <Video className="w-8 h-8" />
+                          </div>
+                        ) : (
+                          <Image
+                            src={item.url}
+                            alt={`${property.title} ${index + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                        )}
                       </button>
                     ))}
                   </div>
@@ -449,7 +517,7 @@ export default function PropertyDetails() {
                     <Maximize className="w-5 h-5" />
                   </div>
                   <div className="font-bold text-slate-900 text-lg">{property.size || property.area || "2500"}</div>
-                  <div className="text-slate-500 text-xs uppercase tracking-wide">Sq Ft</div>
+                  <div className="text-slate-500 text-xs uppercase tracking-wide">{getAreaUnitLabel()}</div>
                 </div>
               </div>
             </div>
@@ -759,7 +827,7 @@ export default function PropertyDetails() {
           <div className="min-h-screen px-4 py-8">
             <div className="max-w-7xl mx-auto">
               <div className="flex justify-between items-center mb-8 sticky top-0 z-50 py-4 bg-black/95">
-                <h2 className="text-white text-2xl font-bold">Property Photos ({allImages.length})</h2>
+                <h2 className="text-white text-2xl font-bold">Property Media ({mediaItems.length})</h2>
                 <button 
                   onClick={() => setShowAllPhotos(false)}
                   className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full transition-colors"
@@ -769,7 +837,7 @@ export default function PropertyDetails() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {allImages.map((img, idx) => (
+                {mediaItems.map((item, idx) => (
                   <div 
                     key={idx} 
                     className={`relative aspect-[4/3] group cursor-pointer rounded-xl overflow-hidden ${selectedImageIndex === idx ? 'ring-4 ring-blue-500' : ''}`}
@@ -778,12 +846,18 @@ export default function PropertyDetails() {
                       setShowAllPhotos(false);
                     }}
                   >
-                    <Image
-                      src={img} 
-                      alt={`Property view ${idx + 1}`} 
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
+                    {item.type === 'video' ? (
+                      <div className="w-full h-full flex items-center justify-center bg-slate-900 text-white">
+                        <Video className="w-10 h-10" />
+                      </div>
+                    ) : (
+                      <Image
+                        src={item.url} 
+                        alt={`${property.title} ${idx + 1}`} 
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    )}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors"></div>
                   </div>
                 ))}

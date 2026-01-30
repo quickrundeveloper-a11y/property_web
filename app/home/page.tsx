@@ -180,14 +180,29 @@ function HomeContentInner() {
 
   const getPriceSuffix = (item: Property) => {
     const unit = String(item?.priceUnit || '').toLowerCase();
-    if (unit === 'per_year') return '/year';
-    if (unit === 'per_sqft') return '/sq ft';
-    if (unit === 'per_sqm') return '/sq m';
-    if (unit === 'per_acre') return '/acre';
-    if (unit === 'per_bigha') return '/bigha';
-    if (unit === 'per_katha') return '/katha';
-    if (unit === 'per_gaj') return '/gaj';
-    return '/month';
+    const map: Record<string, string> = {
+      per_month: '/month',
+      per_year: '/year',
+      per_sqft: '/sq ft',
+      per_sqyards: '/sq yards',
+      per_sqm: '/sq m',
+      per_acre: '/acre',
+      per_marla: '/marla',
+      per_cents: '/cents',
+      per_bigha: '/bigha',
+      per_kottah: '/kottah',
+      per_kanal: '/kanal',
+      per_grounds: '/grounds',
+      per_ares: '/ares',
+      per_biswa: '/biswa',
+      per_guntha: '/guntha',
+      per_aankadam: '/aankadam',
+      per_hectares: '/hectares',
+      per_rood: '/rood',
+      per_chataks: '/chataks',
+      per_perch: '/perch'
+    };
+    return map[unit] || '/month';
   };
 
   const isPlotType = (item: Property) => {
@@ -213,6 +228,33 @@ function HomeContentInner() {
     return true;
   };
 
+  const getAreaUnitLabel = (item: Property) => {
+    const unit = String(item.units || item.areaUnit || item.area_unit || '').toLowerCase();
+    if (unit) {
+      const map: Record<string, string> = {
+        sqft: 'sq ft',
+        sqm: 'sq m',
+        sqyards: 'sq yards',
+        acres: 'acres',
+        marla: 'marla',
+        cents: 'cents',
+        bigha: 'bigha',
+        kottah: 'kottah',
+        kanal: 'kanal',
+        grounds: 'grounds',
+        ares: 'ares',
+        biswa: 'biswa',
+        guntha: 'guntha',
+        aankadam: 'aankadam',
+        hectares: 'hectares',
+        rood: 'rood',
+        chataks: 'chataks',
+        perch: 'perch'
+      };
+      return map[unit] || unit;
+    }
+    return 'sq ft';
+  };
   useEffect(() => {
     fetchProperties();
   }, []);
@@ -278,11 +320,11 @@ function HomeContentInner() {
               {/* Main Heading */}
               <div className="mb-6 lg:mb-8">
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 leading-tight text-[#000929]">
-                  Buy, rent, or Post Property<br />
+                  Buy, rent, or Sell Property<br />
                   easily
                 </h1>
                 <p className="text-black text-base lg:text-lg max-w-lg mx-auto lg:mx-0">
-                  A great platform to buy, post property, or even rent without any commissions.
+                  A great platform to buy, sell property, or even rent without any commissions.
                 </p>
               </div>
 
@@ -318,7 +360,7 @@ function HomeContentInner() {
                         : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                     }`}
                   >
-                    Post Property
+                    Sell Property
                   </button>
                 </div>
 
@@ -464,7 +506,7 @@ function HomeContentInner() {
             {[
               { id: "Rent", label: "Rent" },
               { id: "Buy", label: "Buy" },
-              { id: "Sell", label: "Post Property" }
+              { id: "Sell", label: "Sell Property" }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -591,18 +633,22 @@ function HomeContentInner() {
                       </p>
                       
                       <div className="flex items-center justify-between text-gray-500">
-                        <div className="flex items-center gap-1.5">
-                          <Bed className="w-4 h-4 text-[#0066FF]" />
-                          <span className="text-xs"><span className="font-bold text-gray-700">{property.bedrooms || property.beds || 3}</span> Beds</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Bath className="w-4 h-4 text-[#0066FF]" />
-                          <span className="text-xs"><span className="font-bold text-gray-700">{property.bathrooms || property.baths || 2}</span> Bathrooms</span>
-                        </div>
+                        {!(String(property.propertyCategory || '').toLowerCase().includes('land') || String(property.propertyCategory || '').toLowerCase().includes('plot')) && (
+                          <>
+                            <div className="flex items-center gap-1.5">
+                              <Bed className="w-4 h-4 text-[#0066FF]" />
+                              <span className="text-xs"><span className="font-bold text-gray-700">{property.bedrooms || property.beds || 3}</span> Beds</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Bath className="w-4 h-4 text-[#0066FF]" />
+                              <span className="text-xs"><span className="font-bold text-gray-700">{property.bathrooms || property.baths || 2}</span> Bathrooms</span>
+                            </div>
+                          </>
+                        )}
                         <div className="flex items-center gap-1.5">
                           <Square className="w-4 h-4 text-[#0066FF]" />
                           <span className="text-xs">
-                            <span className="font-bold text-gray-700">{property.area || property.sqft || "5x7"}</span> {property.areaUnit || property.area_unit || "sqft"}
+                            <span className="font-bold text-gray-700">{property.area || property.sqft || "5x7"}</span> {getAreaUnitLabel(property)}
                           </span>
                         </div>
                       </div>
@@ -744,4 +790,3 @@ export default function HomeContent() {
     </Suspense>
   );
 }
-

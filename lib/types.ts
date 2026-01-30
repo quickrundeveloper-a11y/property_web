@@ -15,6 +15,7 @@ export interface Property {
   baths?: number;
   area?: string | number;
   sqft?: string | number;
+  units?: string;
   type?: string;
   listingType?: string;
   propertyType?: string;
@@ -34,4 +35,9 @@ export interface Property {
   area_unit?: string;
   phone?: string;
   contact?: string;
+  videoUrl?: string;
+  totalFloors?: number;
+  floorNumber?: number;
+  furnishingStatus?: string;
+  features?: string[];
 }

@@ -47,14 +47,29 @@ export default function MyProperties() {
 
   const getPriceSuffix = (property: Property) => {
     const unit = String(property.priceUnit || '').toLowerCase();
-    if (unit === 'per_year') return '/year';
-    if (unit === 'per_sqft') return '/sq ft';
-    if (unit === 'per_sqm') return '/sq m';
-    if (unit === 'per_acre') return '/acre';
-    if (unit === 'per_bigha') return '/bigha';
-    if (unit === 'per_katha') return '/katha';
-    if (unit === 'per_gaj') return '/gaj';
-    return '/month';
+    const map: Record<string, string> = {
+      per_month: '/month',
+      per_year: '/year',
+      per_sqft: '/sq ft',
+      per_sqyards: '/sq yards',
+      per_sqm: '/sq m',
+      per_acre: '/acre',
+      per_marla: '/marla',
+      per_cents: '/cents',
+      per_bigha: '/bigha',
+      per_kottah: '/kottah',
+      per_kanal: '/kanal',
+      per_grounds: '/grounds',
+      per_ares: '/ares',
+      per_biswa: '/biswa',
+      per_guntha: '/guntha',
+      per_aankadam: '/aankadam',
+      per_hectares: '/hectares',
+      per_rood: '/rood',
+      per_chataks: '/chataks',
+      per_perch: '/perch'
+    };
+    return map[unit] || '/month';
   };
 
   useEffect(() => {
@@ -215,7 +230,7 @@ export default function MyProperties() {
                     <div className="flex items-center gap-1">
                       <Square className="w-3.5 h-3.5 text-[#0066FF]" />
                       <span className="text-[10px]">
-                        <span className="font-bold text-gray-700">{property.area || property.sqft || "5x7"}</span> {property.areaUnit || property.priceUnit === 'per_sqft' ? 'sqft' : 'm²'}
+                        <span className="font-bold text-gray-700">{property.area || property.sqft || "5x7"}</span> {String((property as any).units || property.areaUnit || property.area_unit || 'sqft').toLowerCase()}
                       </span>
                     </div>
                   </div>

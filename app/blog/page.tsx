@@ -61,7 +61,7 @@ export default function BlogPage() {
       excerpt: "Expert advice on staging your property to attract potential buyers and sell faster at a better price.",
       author: "Emily Davis",
       date: "Dec 28, 2025",
-      category: "Post Property Tips",
+      category: "Sell Property Tips",
       image: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
       slug: "stage-home-quick-sale"
     }

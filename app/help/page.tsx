@@ -23,7 +23,7 @@ export default function HelpCenterPage() {
     },
     {
       icon: MessageCircle,
-      title: "Post Property & Listing",
+      title: "Sell Property & Listing",
       description: "Tips for listing your property and finding buyers.",
       link: "/guides"
     }

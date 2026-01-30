@@ -125,7 +125,32 @@ export default function Dashboard() {
                   <span className="font-bold text-blue-600">
                     ₹{property.price?.toLocaleString() || 0}
                     <span className="text-xs font-normal text-gray-400 ml-1">
-                       {property.priceUnit?.replace('per_', '/') || ''}
+                      {(() => {
+                        const unit = String(property.priceUnit || '').toLowerCase();
+                        const map: Record<string, string> = {
+                          per_month: '/month',
+                          per_year: '/year',
+                          per_sqft: '/sq ft',
+                          per_sqyards: '/sq yards',
+                          per_sqm: '/sq m',
+                          per_acre: '/acre',
+                          per_marla: '/marla',
+                          per_cents: '/cents',
+                          per_bigha: '/bigha',
+                          per_kottah: '/kottah',
+                          per_kanal: '/kanal',
+                          per_grounds: '/grounds',
+                          per_ares: '/ares',
+                          per_biswa: '/biswa',
+                          per_guntha: '/guntha',
+                          per_aankadam: '/aankadam',
+                          per_hectares: '/hectares',
+                          per_rood: '/rood',
+                          per_chataks: '/chataks',
+                          per_perch: '/perch'
+                        };
+                        return map[unit] || (unit ? unit.replace('per_', '/') : '');
+                      })()}
                     </span>
                   </span>
                   <span className={`px-2 py-1 rounded text-xs ${property.type === 'rent' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
