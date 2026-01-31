@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { doc, getDoc, runTransaction, serverTimestamp, collection, deleteDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, runTransaction, serverTimestamp, collection, deleteDoc, setDoc, query, limit, getDocs, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useChat } from "@/app/context/ChatContext";
+import { getGuestId } from "@/utils/guestId";
+import Header from "@/app/components/header";
+import Footer from "@/app/components/footer";
 import { 
   MapPin, 
   Bed, 
@@ -28,7 +31,22 @@ import {
   X,
   ImageIcon,
   Video,
-  FileText
+  FileText,
+  Eye,
+  Car,
+  Sofa,
+  Ruler,
+  Compass,
+  Waves,
+  Trees,
+  Droplets,
+  Zap,
+  Fan,
+  Armchair,
+  LandPlot,
+  MoreVertical,
+  ChevronRight,
+  ArrowRight
 } from "lucide-react";
 
 interface Property {
@@ -52,7 +70,7 @@ interface Property {
   description?: string;
   videoUrl?: string;
   floorPlan?: string;
-  type?: string;
+  type?: string; // rent or sell
   developer?: string;
   project?: string;
   floor?: string;
@@ -67,19 +85,113 @@ interface Property {
   sellerName?: string;
   ownerId?: string;
   userId?: string;
+  viewCount?: number;
+  
+  // New fields from add-property-form
+  propertyType?: string; // residential, commercial, etc.
+  totalFloors?: string | number;
+  floorNumber?: string | number;
+  furnishingStatus?: string;
+  plotArea?: string | number;
+  plotLength?: string | number;
+  plotBreadth?: string | number;
+  floorsAllowed?: string | number;
+  boundaryWall?: string;
+  openSides?: string | number;
+  anyConstruction?: string;
+  possessionBy?: string;
+  balconies?: string | number;
+  builtUpArea?: string | number;
+  superBuiltUpArea?: string | number;
+  otherRooms?: string[];
+  coveredParking?: string | number;
+  openParking?: string | number;
+  availabilityStatus?: string;
+  ageOfProperty?: string;
+  facing?: string;
+  overlooking?: string[];
+  waterSource?: string[];
+  flooring?: string;
+  powerBackup?: string;
+  facingRoadWidth?: string | number;
+  facingRoadUnit?: string;
+  ownership?: string;
+  pricePerSqFt?: string | number;
+  allInclusivePrice?: boolean;
+  taxExcluded?: boolean;
+  priceNegotiable?: boolean;
+  uniqueDescription?: string;
 }
 
 export default function PropertyDetails() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { openChat } = useChat();
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showAllPhotos, setShowAllPhotos] = useState(false);
+  const [similarProperties, setSimilarProperties] = useState<Property[]>([]);
+
+  useEffect(() => {
+    const fetchSimilar = async () => {
+      try {
+        const q = query(
+          collection(db, "property_All", "main", "properties"),
+          limit(10)
+        );
+        const querySnapshot = await getDocs(q);
+        const props = querySnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as Property))
+          .filter(p => p.id !== (Array.isArray(params.id) ? params.id[0] : params.id));
+        
+        setSimilarProperties(props);
+      } catch (error) {
+        console.error("Error fetching similar properties:", error);
+      }
+    };
+    
+    fetchSimilar();
+  }, [params.id]);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showShareOptions, setShowShareOptions] = useState(false);
+
+  useEffect(() => {
+    const recordView = async () => {
+      if (!params.id) return;
+      const propertyId = Array.isArray(params.id) ? params.id[0] : params.id;
+      
+      let userId = user?.uid;
+      let isGuest = false;
+
+      // Treat anonymous users as guests for view counting
+      if (!user || user.isAnonymous) {
+        userId = getGuestId() || undefined;
+        isGuest = true;
+      }
+
+      if (!userId) return;
+
+      try {
+        await fetch('/api/views/record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId,
+            userId,
+            isGuest,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to record view:', error);
+      }
+    };
+
+    if (!authLoading) {
+      recordView();
+    }
+  }, [params.id, user, authLoading]);
 
   useEffect(() => {
     const checkFavorite = async () => {
@@ -166,7 +278,8 @@ export default function PropertyDetails() {
               status: "Ready to Move",
               furnished: "Semi-Furnished",
               ageOfConstruction: "New Construction",
-              sellerId: "default-seller-1"
+              sellerId: "default-seller-1",
+              propertyCategory: "Independent House/Villa"
             },
             {
               id: "default-2",
@@ -190,7 +303,8 @@ export default function PropertyDetails() {
               floor: "5th Floor",
               status: "Ready to Move",
               furnished: "Fully Furnished",
-              ageOfConstruction: "2 Years"
+              ageOfConstruction: "2 Years",
+              propertyCategory: "Flat/Apartment"
             },
             {
               id: "default-3",
@@ -214,7 +328,8 @@ export default function PropertyDetails() {
               floor: "3rd Floor",
               status: "Ready to Move",
               furnished: "Unfurnished",
-              ageOfConstruction: "1 Year"
+              ageOfConstruction: "1 Year",
+              propertyCategory: "1 RK/Studio Apartment"
             }
           ];
           
@@ -317,6 +432,7 @@ export default function PropertyDetails() {
 
   const category = String(property.propertyCategory || "").toLowerCase();
   const isLand = category.includes("land") || category.includes("plot");
+  
   const getAreaUnitLabel = () => {
     const unit = String(property.units || '').toLowerCase();
     if (unit) {
@@ -345,566 +461,534 @@ export default function PropertyDetails() {
     return 'Sq Ft';
   };
 
+  const calculateEMI = (price: number) => {
+    // Simple EMI Calculation: Price * 0.007 (approx for 8.5% for 20y)
+    // If price is monthly rent, don't show EMI or show 0
+    if (property.type === 'rent') return null;
+    
+    const emi = Math.round(price * 0.0072); // Approx factor
+    if (emi > 100000) return `~ ${(emi/100000).toFixed(2)} Lac`;
+    return `~ ${Math.round(emi/1000)}k`;
+  };
+
+  const handleMessageOwner = async () => {
+     const sellerId = property.sellerId || property.ownerId || property.userId || null;
+     if (!sellerId || !user || user.isAnonymous) {
+       if (!user || user.isAnonymous) {
+         router.push("/auth?fromContact=true");
+         return;
+       }
+       alert("This property owner cannot be contacted at the moment (Missing owner details).");
+       return;
+     }
+     const buyerName = user.displayName || "Buyer";
+     const sellerName = property.OwnerName || property.contactName || property.sellerName || "Property Owner";
+     const message = `Hi, I'm interested in ${property.title}`;
+     
+     const [uid1, uid2] = [user.uid, sellerId].sort();
+     const chatId = `${property.id}_${uid1}_${uid2}`;
+
+     try {
+       await runTransaction(db, async (transaction) => {
+         const chatRef = doc(db, "property_All", "main", "chats", chatId);
+         const chatDoc = await transaction.get(chatRef);
+
+         if (!chatDoc.exists()) {
+           transaction.set(chatRef, {
+             chatId,
+             propertyId: property.id,
+             propertyName: property.title,
+             users: [user.uid, sellerId],
+             userNames: { [user.uid]: buyerName, [sellerId]: sellerName },
+             lastMessage: message,
+             lastSenderId: user.uid,
+             lastUpdated: serverTimestamp(),
+             unreadCounts: { [user.uid]: 0, [sellerId]: 1 },
+             buyerId: user.uid,
+             buyerName: buyerName,
+             sellerId: sellerId,
+             sellerName: sellerName,
+             participants: [user.uid, sellerId]
+           });
+           const messageRef = doc(collection(db, "property_All", "main", "chats", chatId, "messages"));
+           transaction.set(messageRef, {
+             text: message,
+             senderId: user.uid,
+             senderName: buyerName,
+             createdAt: serverTimestamp()
+           });
+         }
+       });
+       openChat(chatId);
+     } catch (error) {
+       console.error("Error creating chat:", error);
+     }
+  };
+
+  const handleCallOwner = () => {
+    if (!user || user.isAnonymous) {
+      router.push("/auth?fromContact=true");
+      return;
+    }
+    const phoneNumber = property.phone || property.contact || "+91-9876543210";
+    const validPhone = phoneNumber.replace(/[^\d+]/g, '').length > 5 ? phoneNumber : "+91-9876543210";
+    window.location.href = `tel:${validPhone}`;
+  };
+
+  const emiDisplay = calculateEMI(property.price);
+
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      {/* Top Navigation Bar */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center text-slate-600 hover:text-slate-900 transition-colors font-medium"
-          >
-            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mr-2 hover:bg-slate-200 transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-            </div>
-            Back
-          </button>
-          <div className="flex items-center gap-3 relative">
-            <button 
-              onClick={() => setShowShareOptions(!showShareOptions)}
-              className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-            >
-              <Share2 className="w-4 h-4" />
-            </button>
-            {showShareOptions && (
-              <div className="absolute top-12 right-0 bg-white rounded-xl shadow-xl border border-slate-100 p-2 z-50 w-48 flex flex-col gap-1">
-                <button onClick={() => handleShare('whatsapp')} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg text-left">
-                  <div className="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
-                    <Phone className="w-3 h-3" />
-                  </div>
-                  WhatsApp
-                </button>
-                <button onClick={() => handleShare('facebook')} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg text-left">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                    <User className="w-3 h-3" />
-                  </div>
-                  Facebook
-                </button>
-                <button onClick={() => handleShare('copy')} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg text-left">
-                  <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center">
-                    <Share2 className="w-3 h-3" />
-                  </div>
-                  Copy Link
-                </button>
+    <div className="min-h-screen bg-white">
+      <Header />
+      
+      <main className="pb-20 pt-6">
+      
+      {/* HEADER SECTION */}
+      <div className="max-w-7xl mx-auto px-4 md:px-8 mb-6">
+        
+        {/* Header Section */}
+        <div className="mb-8">
+           <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+              <div>
+                 <div className="flex items-center gap-3 mb-3">
+                    <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                       {property.type === 'rent' ? 'For Rent' : 'For Sale'}
+                    </span>
+                    {property.viewCount !== undefined && (
+                       <div className="flex items-center gap-1.5 text-slate-500 text-sm bg-slate-100 px-3 py-1 rounded-full">
+                          <Eye className="w-3 h-3" />
+                          <span className="font-medium">{property.viewCount} Views</span>
+                       </div>
+                    )}
+                    <div className="flex items-center gap-1.5 text-slate-500 text-sm bg-slate-100 px-3 py-1 rounded-full">
+                       <Calendar className="w-3 h-3" />
+                       <span className="font-medium">Posted {property.ageOfProperty || "Recently"}</span>
+                    </div>
+                 </div>
+
+                 <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">{property.title}</h1>
+                 
+                 <div className="flex items-center flex-wrap gap-4 text-slate-600 mb-4">
+                    <div className="flex items-center gap-1">
+                       <MapPin className="w-4 h-4 text-blue-600" />
+                       {property.location}
+                    </div>
+                 </div>
+
+                 <div className="flex items-baseline gap-3">
+                    <h2 className="text-3xl md:text-4xl font-bold text-slate-900">
+                       ₹{property.price?.toLocaleString('en-IN')} 
+                       {property.type === 'rent' && <span className="text-lg text-slate-500 font-normal">/mo</span>}
+                    </h2>
+                    {emiDisplay && (
+                      <span className="text-sm text-blue-600 font-medium px-3 py-1 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                         EMI starts at {emiDisplay}
+                      </span>
+                    )}
+                 </div>
               </div>
+
+              {property.priceUnit && (
+                 <div className="hidden md:block px-6 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-center">
+                    <span className="block text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Price Unit</span>
+                    <span className="text-slate-900 font-bold">{property.priceUnit}</span>
+                 </div>
+              )}
+           </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          
+          {/* LEFT COLUMN - Images (7 cols) */}
+          <div className="lg:col-span-7 space-y-10">
+            {/* Image Gallery */}
+            <div className="space-y-4">
+               <div className="relative aspect-[16/10] w-full overflow-hidden rounded-3xl bg-slate-100 group shadow-lg shadow-slate-200/50">
+                  {mediaItems[displayedIndex]?.type === 'video' ? (
+                    <video src={mediaItems[displayedIndex].url} controls className="w-full h-full object-cover" />
+                  ) : (
+                    <Image
+                       src={mediaItems[displayedIndex]?.url || '/placeholder-property.jpg'}
+                       alt={property.title}
+                       fill
+                       className="object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer"
+                       onClick={() => setShowAllPhotos(true)}
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                  <button 
+                    onClick={() => setShowAllPhotos(true)}
+                    className="absolute bottom-6 right-6 bg-white/95 backdrop-blur-md hover:bg-white text-slate-900 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
+                  >
+                     <ImageIcon className="w-4 h-4" />
+                     Show all {mediaItems.length} photos
+                  </button>
+               </div>
+
+               {/* Thumbnails Row */}
+               {mediaItems.length > 1 && (
+                  <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-1">
+                     {mediaItems.map((item, index) => (
+                        <button
+                           key={index}
+                           onClick={() => setSelectedImageIndex(index)}
+                           className={`relative w-28 aspect-[4/3] flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all transform hover:scale-105 ${
+                              selectedImageIndex === index 
+                                 ? "border-slate-900 ring-2 ring-slate-200 ring-offset-2 scale-105" 
+                                 : "border-transparent opacity-70 hover:opacity-100 grayscale hover:grayscale-0"
+                           }`}
+                        >
+                           {item.type === 'video' ? (
+                              <div className="w-full h-full flex items-center justify-center bg-slate-800 text-white"><Video className="w-6 h-6"/></div>
+                           ) : (
+                              <Image
+                                 src={item.url}
+                                 alt={`View ${index + 1}`}
+                                 fill
+                                 className="object-cover"
+                              />
+                           )}
+                        </button>
+                     ))}
+                  </div>
+               )}
+            </div>
+
+            {/* Amenities Section */}
+            {((property.features && property.features.length > 0) || (property.amenities && property.amenities.length > 0)) && (
+               <div className="bg-slate-50 rounded-3xl p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                     <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                        <CheckCircle2 className="w-6 h-6" />
+                     </div>
+                     <h3 className="text-xl font-bold text-slate-900">Amenities & Features</h3>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6">
+                     {[...(property.features || []), ...(property.amenities || [])].map((feature, idx) => (
+                        <div key={idx} className="flex items-center gap-3 text-slate-700 font-medium p-3 bg-white rounded-xl shadow-sm border border-slate-100">
+                           <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                           {feature}
+                        </div>
+                     ))}
+                  </div>
+               </div>
             )}
-            <button 
-              onClick={toggleFavorite}
-              className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${
-                isFavorite 
-                  ? "border-red-100 bg-red-50 text-red-500" 
-                  : "border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-100"
-              }`}
-            >
-              <Heart className={`w-4 h-4 ${isFavorite ? "fill-current" : ""}`} />
-            </button>
+
+            {/* Description Section */}
+            <div>
+               <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <Info className="w-5 h-5 text-slate-400" />
+                  About this property
+               </h3>
+               <div className="prose prose-slate max-w-none">
+                  <p className="text-slate-600 leading-loose whitespace-pre-wrap text-lg">
+                     {property.description || property.uniqueDescription || "No description available for this property."}
+                  </p>
+               </div>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN - Details & Info (5 cols) */}
+          <div className="lg:col-span-5">
+            <div className="sticky top-24 space-y-8">
+            
+              {/* Quick Stats - Grid Card Design */}
+              <div className="grid grid-cols-3 gap-4">
+                 {!isLand ? (
+                    <>
+                       <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center text-center hover:bg-slate-100 transition-colors group">
+                          <Bed className="w-6 h-6 text-slate-400 group-hover:text-blue-600 mb-2 transition-colors" />
+                          <span className="font-bold text-slate-900 text-lg">{property.beds || property.bedrooms || 0}</span>
+                          <span className="text-xs text-slate-500 font-bold uppercase tracking-wide">Beds</span>
+                       </div>
+                       <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center text-center hover:bg-slate-100 transition-colors group">
+                          <Bath className="w-6 h-6 text-slate-400 group-hover:text-blue-600 mb-2 transition-colors" />
+                          <span className="font-bold text-slate-900 text-lg">{property.baths || property.bathrooms || 0}</span>
+                          <span className="text-xs text-slate-500 font-bold uppercase tracking-wide">Baths</span>
+                       </div>
+                       <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center text-center hover:bg-slate-100 transition-colors group">
+                          <Maximize className="w-6 h-6 text-slate-400 group-hover:text-blue-600 mb-2 transition-colors" />
+                          <span className="font-bold text-slate-900 text-lg">{property.size || property.area}</span>
+                          <span className="text-xs text-slate-500 font-bold uppercase tracking-wide">{property.units || "sqft"}</span>
+                       </div>
+                    </>
+                 ) : (
+                    <>
+                       <div className="col-span-3 bg-slate-50 border border-slate-100 rounded-2xl p-6 flex items-center justify-between hover:bg-slate-100 transition-colors group">
+                          <div className="flex items-center gap-4">
+                             <div className="p-3 bg-white rounded-xl shadow-sm text-slate-400 group-hover:text-blue-600 transition-colors">
+                                <LandPlot className="w-6 h-6" />
+                             </div>
+                             <div>
+                                <span className="block text-xs text-slate-500 font-bold uppercase tracking-wide mb-1">Plot Area</span>
+                                <span className="block font-bold text-slate-900 text-xl">{property.plotArea || property.area || property.size} {property.units || "Sq Ft"}</span>
+                             </div>
+                          </div>
+                       </div>
+                    </>
+                 )}
+              </div>
+
+              {/* Key Details Grid */}
+              <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+                 <h3 className="font-bold text-slate-900 mb-6 text-lg">Property Details</h3>
+                 <div className="grid grid-cols-2 gap-y-8 gap-x-4">
+                    <div>
+                       <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Type</div>
+                       <div className="font-semibold text-slate-900 capitalize text-base">{property.propertyCategory || "Apartment"}</div>
+                    </div>
+                    
+                    <div>
+                       <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Status</div>
+                       <div className="font-semibold text-slate-900 text-base">
+                          <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                          {property.status || property.availabilityStatus || "Ready to Move"}
+                       </div>
+                    </div>
+
+                    <div>
+                       <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Project</div>
+                       <div className="font-semibold text-slate-900 text-base border-b border-dotted border-slate-400 inline-block pb-0.5">{property.project || property.title}</div>
+                    </div>
+
+                    <div>
+                       <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Ownership</div>
+                       <div className="font-semibold text-slate-900 text-base">{property.ownership || "Freehold"}</div>
+                    </div>
+
+                    {!isLand && (
+                       <div>
+                          <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Floor</div>
+                          <div className="font-semibold text-slate-900 text-base">
+                             {property.floorNumber || property.floor || "N/A"} 
+                             {property.totalFloors && <span className="text-slate-400 font-normal"> / {property.totalFloors}</span>}
+                          </div>
+                       </div>
+                    )}
+                    
+                    <div>
+                       <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Furnishing</div>
+                       <div className="font-semibold text-slate-900 text-base">{property.furnished || property.furnishingStatus || "Unfurnished"}</div>
+                    </div>
+                 </div>
+              </div>
+
+              {/* Contact Actions */}
+              <div className="space-y-4 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                <div className="flex items-center gap-4 mb-2">
+                   <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-2xl border border-blue-100">
+                      {property.contactName?.[0] || property.sellerName?.[0] || "O"}
+                   </div>
+                   <div>
+                      <div className="font-bold text-xl text-slate-900">{property.contactName || property.sellerName || "Property Owner"}</div>
+                      <div className="text-sm text-slate-500 flex items-center gap-1.5 font-medium">
+                         <ShieldCheck className="w-4 h-4 text-green-500" /> 
+                         <span>Verified Seller</span>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                   <button 
+                      onClick={handleMessageOwner}
+                      className="bg-[#0066FF] hover:bg-blue-600 text-white py-4 rounded-xl font-bold transition-all flex flex-col items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                   >
+                      <MessageCircle className="w-6 h-6" />
+                      <span>Chat</span>
+                   </button>
+                   <button 
+                      onClick={handleCallOwner}
+                      className="bg-white border border-slate-200 text-slate-900 hover:bg-slate-50 py-4 rounded-xl font-bold transition-all flex flex-col items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                   >
+                      <Phone className="w-6 h-6" />
+                      <span>Call</span>
+                   </button>
+                </div>
+                <div className="text-center text-sm text-slate-400 mt-2 font-medium">
+                   Response time: usually within 1 hour
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        {/* SIMILAR PROPERTIES SECTIONS */}
+        <div className="mt-16 border-t border-slate-200 pt-12">
+          {/* Section 1: Nearby */}
+          <div className="mb-12">
+            <div className="flex items-center justify-between mb-6">
+               <h2 className="text-2xl font-bold text-slate-900">Other Properties in this Project and Nearby</h2>
+               <button className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm">
+                  <ArrowRight className="w-5 h-5 text-slate-600" />
+               </button>
+            </div>
+            
+            <div className="flex gap-6 overflow-x-auto pb-8 -mx-4 px-4 scrollbar-hide snap-x">
+               {similarProperties.slice(0, 5).map((prop, idx) => (
+                  <div 
+                    key={prop.id || idx} 
+                    onClick={() => router.push(`/property/${prop.id}`)}
+                    className="min-w-[300px] md:min-w-[340px] bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer snap-start"
+                  >
+                     <div className="relative h-56 bg-slate-200 overflow-hidden">
+                        <Image 
+                           src={prop.images?.[0] || prop.image || "/placeholder.jpg"} 
+                           alt={prop.title || "Property"} 
+                           fill
+                           className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                        <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white text-xs font-bold px-2 py-1 rounded-md flex items-center gap-1">
+                           <ImageIcon className="w-3 h-3" />
+                           {prop.images?.length || 1}
+                        </div>
+                        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-slate-900 text-xs font-bold px-2 py-1 rounded-md">
+                           {prop.propertyCategory || "Property"}
+                        </div>
+                     </div>
+                     
+                     <div className="p-5">
+                        <h3 className="font-bold text-slate-900 text-lg mb-2 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                           {prop.title || `${prop.bedrooms || 3} BHK ${prop.propertyCategory || "Apartment"}`}
+                        </h3>
+                        
+                        <div className="flex items-center gap-2 mb-3 text-slate-900">
+                           <span className="font-bold text-xl">₹{prop.price || "0"} {prop.priceUnit || ""}</span>
+                           <span className="text-slate-300">|</span>
+                           <span className="font-bold text-lg text-slate-700">{prop.area || prop.size || "0"} {prop.units || "sqft"}</span>
+                        </div>
+                        
+                        <div className="text-sm text-slate-500 mb-4 font-medium flex items-center gap-1">
+                           <Building2 className="w-4 h-4 text-slate-400" />
+                           {prop.sellerName || prop.contactName || "Property Owner"}
+                        </div>
+                        
+                        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                           <div className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                              {prop.status || prop.availabilityStatus || "Ready to Move"}
+                           </div>
+                           <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all">
+                              <ArrowRight className="w-4 h-4" />
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               ))}
+               {similarProperties.length === 0 && (
+                  <div className="w-full text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-300 text-slate-500">
+                     No similar properties found nearby.
+                  </div>
+               )}
+            </div>
+          </div>
+
+          {/* Section 2: People also liked */}
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">People who viewed this property also liked</h2>
+            <div className="flex gap-6 overflow-x-auto pb-8 -mx-4 px-4 scrollbar-hide snap-x">
+               {(similarProperties.length > 5 ? similarProperties.slice(5) : similarProperties.slice(0, 4)).map((prop, idx) => (
+                  <div 
+                    key={prop.id || idx} 
+                    onClick={() => router.push(`/property/${prop.id}`)}
+                    className="min-w-[300px] md:min-w-[340px] bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer snap-start"
+                  >
+                     <div className="relative h-56 bg-slate-200 overflow-hidden">
+                        <Image 
+                           src={prop.images?.[0] || prop.image || "/placeholder.jpg"} 
+                           alt={prop.title || "Property"} 
+                           fill
+                           className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                        <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white text-xs font-bold px-2 py-1 rounded-md flex items-center gap-1">
+                           <ImageIcon className="w-3 h-3" />
+                           {prop.images?.length || 1}
+                        </div>
+                     </div>
+                     
+                     <div className="p-5">
+                        <h3 className="font-bold text-slate-900 text-lg mb-2 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                           {prop.title || `${prop.bedrooms || 3} BHK ${prop.propertyCategory || "Apartment"}`}
+                        </h3>
+                        
+                        <div className="flex items-center gap-2 mb-3 text-slate-900">
+                           <span className="font-bold text-xl">₹{prop.price || "0"} {prop.priceUnit || ""}</span>
+                           <span className="text-slate-300">|</span>
+                           <span className="font-bold text-lg text-slate-700">{prop.area || prop.size || "0"} {prop.units || "sqft"}</span>
+                        </div>
+                        
+                        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                           <div className="text-sm text-slate-500 font-medium">
+                              {prop.location || "Location not available"}
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               ))}
+            </div>
           </div>
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Left Column - Property Info */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Media Gallery */}
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="relative group w-full aspect-[4/3] md:h-[600px] md:aspect-auto">
-                {mediaItems[displayedIndex]?.type === 'video' ? (
-                  <video
-                    src={mediaItems[displayedIndex].url}
-                    controls
-                    className="w-full h-full object-cover bg-black"
-                  />
-                ) : (
-                  <Image
-                    src={mediaItems[displayedIndex]?.url || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6"}
-                    alt={property.title}
-                    fill
-                    className={`${mediaItems[displayedIndex]?.type === 'floorPlan' ? "object-contain bg-white" : "object-cover"} transition-transform duration-700 cursor-pointer`}
-                    onClick={() => setShowAllPhotos(true)}
-                  />
-                )}
-                
-                <div className="absolute top-6 left-6 flex gap-2 pointer-events-none">
-                  <span className="bg-white/90 backdrop-blur-md text-slate-900 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">
-                    {property.type || "For Rent"}
-                  </span>
-                  {property.status && (
-                    <span className="bg-green-500/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">
-                      {property.status}
-                    </span>
-                  )}
-                </div>
-
-                {mediaItems.length > 1 && (
-                  <div className="absolute bottom-6 right-6 bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 pointer-events-none">
-                    <ImageIcon className="w-4 h-4" />
-                    {displayedIndex + 1} / {mediaItems.length}
-                  </div>
-                )}
-              </div>
-
-              {/* Thumbnail Gallery */}
-              {mediaItems.length > 1 && (
-                <div className="p-4 bg-slate-50 border-t border-slate-100">
-                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
-                    {mediaItems.map((item, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setSelectedImageIndex(index)}
-                        className={`relative flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all snap-start ${
-                          selectedImageIndex === index
-                            ? "border-blue-600 ring-2 ring-blue-100 scale-105 shadow-md"
-                            : "border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-300"
-                        }`}
-                      >
-                        {item.type === 'video' ? (
-                          <div className="w-full h-full flex items-center justify-center bg-slate-900 text-white">
-                            <Video className="w-8 h-8" />
-                          </div>
-                        ) : item.type === 'floorPlan' ? (
-                          <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-600">
-                            <FileText className="w-8 h-8" />
-                          </div>
-                        ) : (
-                          <Image
-                            src={item.url}
-                            alt={`${property.title} ${index + 1}`}
-                            fill
-                            className="object-cover"
-                          />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            {/* Title & Location */}
-            <div>
-              <div className="flex items-start justify-between">
-                <div>
-                  <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">{property.title}</h1>
-                  <div className="flex items-center text-slate-500 font-medium text-lg">
-                    <MapPin className="w-5 h-5 mr-2 text-blue-500" />
-                    {property.location}
-                  </div>
-                </div>
-                {/* Price for Mobile */}
-                <div className="lg:hidden text-right">
-                   <div className="text-2xl font-bold text-blue-600">
-                     ₹{property.price?.toLocaleString('en-IN')}
-                   </div>
-                   <div className="text-slate-500 text-sm">{getPriceSuffix()}</div>
-                </div>
-              </div>
-
-              {/* Stats Cards */}
-              <div className="grid grid-cols-3 gap-4 mt-8">
-                {!isLand && (
-                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center group hover:border-blue-200 transition-colors">
-                    <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 mb-2 group-hover:scale-110 transition-transform">
-                      <Bed className="w-5 h-5" />
-                    </div>
-                    <div className="font-bold text-slate-900 text-lg">{property.beds || property.bedrooms || 4}</div>
-                    <div className="text-slate-500 text-xs uppercase tracking-wide">Bedrooms</div>
-                  </div>
-                )}
-                {!isLand && (
-                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center group hover:border-blue-200 transition-colors">
-                    <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 mb-2 group-hover:scale-110 transition-transform">
-                      <Bath className="w-5 h-5" />
-                    </div>
-                    <div className="font-bold text-slate-900 text-lg">{property.baths || property.bathrooms || 3}</div>
-                    <div className="text-slate-500 text-xs uppercase tracking-wide">Bathrooms</div>
-                  </div>
-                )}
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center group hover:border-blue-200 transition-colors">
-                  <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 mb-2 group-hover:scale-110 transition-transform">
-                    <Maximize className="w-5 h-5" />
-                  </div>
-                  <div className="font-bold text-slate-900 text-lg">{property.size || property.area || "2500"}</div>
-                  <div className="text-slate-500 text-xs uppercase tracking-wide">{getAreaUnitLabel()}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Description */}
-            {property.description && (
-              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-                <h2 className="text-xl font-bold text-slate-900 mb-4">About this property</h2>
-                <p className="text-slate-600 leading-relaxed">
-                  {property.description}
-                </p>
-              </div>
-            )}
-
-            {/* Unique Description */}
-            {property.uniqueDescription && (
-              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-                <h2 className="text-xl font-bold text-slate-900 mb-4">Unique Description</h2>
-                <p className="text-slate-600 leading-relaxed whitespace-pre-line">
-                  {property.uniqueDescription}
-                </p>
-              </div>
-            )}
-
-            {/* Floor Plan */}
-            {property.floorPlan && (
-              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-                <h2 className="text-xl font-bold text-slate-900 mb-6">Floor Plan</h2>
-                <div className="relative aspect-[4/3] w-full md:w-2/3 mx-auto rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
-                   <Image 
-                     src={property.floorPlan} 
-                     alt="Floor Plan" 
-                     fill 
-                     className="object-contain"
-                   />
-                </div>
-              </div>
-            )}
-
-            {/* Property Details Grid */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-              <h2 className="text-xl font-bold text-slate-900 mb-6">Property Details</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
-                 <div className="space-y-4">
-                    {property.developer && (
-                      <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                         <span className="flex items-center text-slate-500"><Building2 className="w-4 h-4 mr-2"/> Developer</span>
-                         <span className="font-medium text-slate-900">{property.developer}</span>
-                      </div>
-                    )}
-                    {property.project && (
-                      <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                         <span className="flex items-center text-slate-500"><Home className="w-4 h-4 mr-2"/> Project</span>
-                         <span className="font-medium text-slate-900">{property.project}</span>
-                      </div>
-                    )}
-                    {property.floor && (
-                      <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                         <span className="flex items-center text-slate-500"><Layers className="w-4 h-4 mr-2"/> Floor</span>
-                         <span className="font-medium text-slate-900">{property.floor}</span>
-                      </div>
-                    )}
-                    {property.status && (
-                      <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                         <span className="flex items-center text-slate-500"><Info className="w-4 h-4 mr-2"/> Status</span>
-                         <span className="font-medium text-slate-900">{property.status}</span>
-                      </div>
-                    )}
-                    {property.ownershipType && (
-                      <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                         <span className="flex items-center text-slate-500"><ShieldCheck className="w-4 h-4 mr-2"/> Ownership</span>
-                         <span className="font-medium text-slate-900">{property.ownershipType}</span>
-                      </div>
-                    )}
-                 </div>
-                 <div className="space-y-4">
-                    {property.furnished && (
-                      <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                         <span className="flex items-center text-slate-500"><Bed className="w-4 h-4 mr-2"/> Furnished</span>
-                         <span className="font-medium text-slate-900">{property.furnished}</span>
-                      </div>
-                    )}
-                    {property.ageOfConstruction && (
-                      <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                         <span className="flex items-center text-slate-500"><Calendar className="w-4 h-4 mr-2"/> Age</span>
-                         <span className="font-medium text-slate-900">{property.ageOfConstruction}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                       <span className="flex items-center text-slate-500"><Home className="w-4 h-4 mr-2"/> Type</span>
-                       <span className="font-medium text-slate-900">{property.type || "Residential"}</span>
-                    </div>
-                 </div>
-              </div>
-            </div>
-
-            {/* Features */}
-            {property.features && property.features.length > 0 && (
-              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-                <h2 className="text-xl font-bold text-slate-900 mb-6">Amenities & Features</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {property.features.map((feature, index) => (
-                    <div key={index} className="flex items-center p-3 rounded-xl bg-slate-50 text-slate-700 font-medium">
-                      <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mr-3 text-green-600 flex-shrink-0">
-                        <CheckCircle2 className="w-4 h-4" />
-                      </div>
-                      {feature}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column - Contact Card */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
-              {/* Price Card Desktop */}
-              <div className="bg-white rounded-3xl p-6 shadow-lg border border-slate-100 hidden lg:block">
-                <div className="mb-6">
-                  <div className="text-sm text-slate-500 font-medium uppercase tracking-wider mb-1">Total Price</div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-slate-900">₹{property.price?.toLocaleString('en-IN')}</span>
-                    <span className="text-slate-500 font-medium">{getPriceSuffix()}</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                   <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-400 shadow-sm border border-slate-100">
-                         <User className="w-6 h-6" />
-                      </div>
-                      <div>
-                         <div className="text-xs text-slate-500 font-medium uppercase">Property Owner</div>
-                         <div className="font-bold text-slate-900">{property.OwnerName || property.contactName || property.sellerName || "Property Owner"}</div>
-                      </div>
-                   </div>
-
-                   <button 
-                     onClick={async () => {
-                       const sellerId =
-                         property.sellerId ||
-                         property.ownerId ||
-                         property.userId ||
-                         null;
-
-                       if (!sellerId || !user || user.isAnonymous) {
-                         if (!user || user.isAnonymous) {
-                           router.push("/auth?fromContact=true");
-                           return;
-                         }
-                         alert("This property owner cannot be contacted at the moment (Missing owner details).");
-                         return;
-                       }
-                       const buyerName = user.displayName || "Buyer";
-                       const sellerName = property.OwnerName || property.contactName || property.sellerName || "Property Owner";
-                       const message = `Hi, I'm interested in ${property.title}`;
-                       
-                       const [uid1, uid2] = [user.uid, sellerId].sort();
-                       const chatId = `${property.id}_${uid1}_${uid2}`;
-
-                       try {
-                         await runTransaction(db, async (transaction) => {
-                           const chatRef = doc(db, "property_All", "main", "chats", chatId);
-                           const chatDoc = await transaction.get(chatRef);
-
-                           if (!chatDoc.exists()) {
-                             transaction.set(chatRef, {
-                               chatId,
-                               propertyId: property.id,
-                               propertyName: property.title,
-                               users: [user.uid, sellerId],
-                               userNames: {
-                                 [user.uid]: buyerName,
-                                 [sellerId]: sellerName
-                               },
-                               lastMessage: message,
-                               lastSenderId: user.uid,
-                               lastUpdated: serverTimestamp(),
-                               unreadCounts: {
-                                 [user.uid]: 0,
-                                 [sellerId]: 1
-                               },
-                               buyerId: user.uid,
-                               buyerName: buyerName,
-                               sellerId: sellerId,
-                               sellerName: sellerName,
-                               participants: [user.uid, sellerId]
-                             });
-
-                             const messageRef = doc(collection(db, "property_All", "main", "chats", chatId, "messages"));
-                             transaction.set(messageRef, {
-                               text: message,
-                               senderId: user.uid,
-                               senderName: buyerName,
-                               createdAt: serverTimestamp()
-                             });
-                           }
-                         });
-
-                         openChat(chatId);
-                       } catch (error) {
-                         console.error("Error creating chat:", error);
-                         alert("Failed to start chat. Please try again.");
-                       }
-                     }}
-                     className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl font-bold transition-all hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2"
-                   >
-                     <MessageCircle className="w-5 h-5" />
-                     Message Owner
-                   </button>
-
-                   <button 
-                      onClick={() => {
-                        if (!user || user.isAnonymous) {
-                          router.push("/auth?fromContact=true");
-                          return;
-                        }
-                        const phoneNumber = property.phone || property.contact || "+91-9876543210";
-                        const validPhone = phoneNumber.replace(/[^\d+]/g, '').length > 5 ? phoneNumber : "+91-9876543210";
-                        window.location.href = `tel:${validPhone}`;
-                      }}
-                     className="w-full bg-white hover:bg-slate-50 text-slate-900 border-2 border-slate-200 py-4 px-6 rounded-xl font-bold transition-all hover:shadow-md flex items-center justify-center gap-2"
-                   >
-                     <Phone className="w-5 h-5" />
-                     Call Owner
-                   </button>
-                </div>
-                
-                <div className="mt-6 pt-6 border-t border-slate-100">
-                   <div className="flex items-center gap-2 text-slate-500 text-sm">
-                      <ShieldCheck className="w-4 h-4 text-green-500" />
-                      <span>Verified Property</span>
-                   </div>
-                   <div className="text-xs text-slate-400 mt-2">
-                      ID: {property.id.slice(-8).toUpperCase()}
-                   </div>
-                </div>
-              </div>
-
-              {/* Mobile Sticky Bottom Bar (Visible only on mobile) */}
-              <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-50 flex gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                   <button 
-                     onClick={async () => {
-                       // Same logic as above
-                       const sellerId =
-                         property.sellerId ||
-                         property.ownerId ||
-                         property.userId ||
-                         null;
-
-                       if (!sellerId || !user || user.isAnonymous) {
-                         if (!user || user.isAnonymous) {
-                           router.push("/auth?fromContact=true");
-                           return;
-                         }
-                         alert("This property owner cannot be contacted at the moment (Missing owner details).");
-                         return;
-                       }
-                       // ... logic ...
-                        const buyerName = user.displayName || "Buyer";
-                        const sellerName = property.OwnerName || property.contactName || property.sellerName || "Property Owner";
-                        const message = `Hi, I'm interested in ${property.title}`;
-                        
-                        const [uid1, uid2] = [user.uid, sellerId].sort();
-                        const chatId = `${property.id}_${uid1}_${uid2}`;
-
-                        try {
-                          await runTransaction(db, async (transaction) => {
-                            const chatRef = doc(db, "property_All", "main", "chats", chatId);
-                            const chatDoc = await transaction.get(chatRef);
-
-                            if (!chatDoc.exists()) {
-                              transaction.set(chatRef, {
-                                chatId,
-                                propertyId: property.id,
-                                propertyName: property.title,
-                                users: [user.uid, sellerId],
-                                userNames: {
-                                  [user.uid]: buyerName,
-                                  [sellerId]: sellerName
-                                },
-                                lastMessage: message,
-                                lastSenderId: user.uid,
-                                lastUpdated: serverTimestamp(),
-                                unreadCounts: {
-                                  [user.uid]: 0,
-                                  [sellerId]: 1
-                                },
-                                buyerId: user.uid,
-                                buyerName: buyerName,
-                                sellerId: sellerId,
-                                sellerName: sellerName,
-                                participants: [user.uid, sellerId]
-                              });
-
-                              const messageRef = doc(collection(db, "property_All", "main", "chats", chatId, "messages"));
-                              transaction.set(messageRef, {
-                                text: message,
-                                senderId: user.uid,
-                                senderName: buyerName,
-                                createdAt: serverTimestamp()
-                              });
-                            }
-                          });
-
-                          openChat(chatId);
-                        } catch (error) {
-                          console.error("Error creating chat:", error);
-                          alert("Failed to start chat. Please try again.");
-                        }
-                     }}
-                     className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2"
-                   >
-                     <MessageCircle className="w-5 h-5" />
-                     Message
-                   </button>
-                   <button 
-                      onClick={() => {
-                        if (!user || user.isAnonymous) {
-                          router.push("/auth?fromContact=true");
-                          return;
-                        }
-                        const phoneNumber = property.phone || property.contact || "+91-9876543210";
-                        const validPhone = phoneNumber.replace(/[^\d+]/g, '').length > 5 ? phoneNumber : "+91-9876543210";
-                        window.location.href = `tel:${validPhone}`;
-                      }}
-                     className="flex-1 bg-slate-100 text-slate-900 py-3 rounded-xl font-bold flex items-center justify-center gap-2"
-                   >
-                     <Phone className="w-5 h-5" />
-                     Call
-                   </button>
-              </div>
-            </div>
-          </div>
-        </div>
       </main>
+      
+      <Footer />
 
-      {/* Full Screen Gallery Modal */}
+      {/* Mobile Sticky Bottom Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-50 flex gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+         <button 
+           onClick={handleMessageOwner}
+           className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-slate-900/20"
+         >
+           Contact
+         </button>
+         <button 
+           onClick={handleCallOwner}
+           className="flex-1 border border-slate-200 text-slate-900 bg-white py-3 rounded-xl font-bold text-sm"
+         >
+           Call
+         </button>
+      </div>
+
+      {/* Full Screen Image Modal */}
       {showAllPhotos && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm overflow-y-auto">
-          <div className="min-h-screen px-4 py-8">
-            <div className="max-w-7xl mx-auto">
-              <div className="flex justify-between items-center mb-8 sticky top-0 z-50 py-4 bg-black/95">
-                <h2 className="text-white text-2xl font-bold">Property Media ({mediaItems.length})</h2>
+        <div className="fixed inset-0 z-[60] bg-black bg-opacity-95 flex flex-col animate-in fade-in duration-200">
+          <div className="flex items-center justify-between p-4 text-white bg-black/50 backdrop-blur-sm">
+             <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setShowAllPhotos(false)}
-                  className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full transition-colors"
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 >
-                  <X className="w-6 h-6" />
+                  <ArrowLeft className="w-6 h-6" />
                 </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {mediaItems.map((item, idx) => (
-                  <div 
-                    key={idx} 
-                    className={`relative aspect-[4/3] group cursor-pointer rounded-xl overflow-hidden ${selectedImageIndex === idx ? 'ring-4 ring-blue-500' : ''}`}
-                    onClick={() => {
-                      setSelectedImageIndex(idx);
-                      setShowAllPhotos(false);
-                    }}
-                  >
-                    {item.type === 'video' ? (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-900 text-white">
-                        <Video className="w-10 h-10" />
-                      </div>
-                    ) : (
-                      <Image
-                        src={item.url} 
-                        alt={`${property.title} ${idx + 1}`} 
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-110"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors"></div>
-                  </div>
+                <div>
+                   <h3 className="font-bold text-lg">{property.title}</h3>
+                   <span className="text-sm text-white/60">{mediaItems.length} Photos</span>
+                </div>
+             </div>
+             <button 
+               onClick={() => setShowAllPhotos(false)}
+               className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+             >
+               <X className="w-6 h-6" />
+             </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 md:p-8">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto">
+                {mediaItems.map((item, index) => (
+                   <div key={index} className="relative aspect-video rounded-xl overflow-hidden bg-slate-800 ring-1 ring-white/10 group">
+                      {item.type === 'video' ? (
+                         <video src={item.url} controls className="w-full h-full object-cover" />
+                      ) : (
+                         <Image 
+                           src={item.url} 
+                           alt={`Property image ${index+1}`}
+                           fill
+                           className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      )}
+                   </div>
                 ))}
-              </div>
-            </div>
+             </div>
           </div>
         </div>
       )}

@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, doc, deleteDoc, query, where } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { Bed, Bath, Square, Edit, Trash2 } from "lucide-react";
+import { Bed, Bath, Square, Edit, Trash2, Eye } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 interface Property {
   id: string;
@@ -18,18 +19,31 @@ interface Property {
   bathrooms?: number;
   area?: string | number;
   priceUnit?: string;
+  viewCount?: number;
   [key: string]: any;
 }
 
 export default function Dashboard() {
+  const { user, loading: authLoading } = useAuth();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const fetchProperties = async () => {
+      if (authLoading) return;
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const querySnapshot = await getDocs(collection(db, "property_All", "main", "properties"));
+        const q = query(
+          collection(db, "property_All", "main", "properties"),
+          where("sellerId", "==", user.uid)
+        );
+        const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
         setProperties(props);
       } catch (error) {
@@ -40,7 +54,7 @@ export default function Dashboard() {
     };
 
     fetchProperties();
-  }, []);
+  }, [user, authLoading]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this property?")) return;
@@ -118,6 +132,10 @@ export default function Dashboard() {
                   <div className="flex items-center gap-1">
                     <Square className="w-4 h-4" />
                     <span>{property.area || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-blue-600 font-medium">
+                    <Eye className="w-4 h-4" />
+                    <span>{property.viewCount || 0}</span>
                   </div>
                 </div>
 

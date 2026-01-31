@@ -28,7 +28,7 @@ const CONSTRUCTION_STATUS = ["New Launch", "Under Construction", "Ready to Move"
 const POSTED_BY = ["Owner", "Dealer", "Builder"];
 
 function HomeContentInner() {
-  const [activeTab, setActiveTab] = useState("Rent");
+  const [activeTab, setActiveTab] = useState("Buy");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilterCategory, setActiveFilterCategory] = useState("Property Types");
