@@ -7,13 +7,47 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { Property } from "@/lib/types";
 import Image from "next/image";
-import { Users, Key, Building2, Search as SearchIcon, Home as HomeIcon, ShieldCheck, CircleDollarSign, Percent, BadgePercent, DollarSign, Scan, Sparkles, Bed, Bath, Square, Heart } from "lucide-react";
+import { Users, Key, Building2, Search as SearchIcon, Home as HomeIcon, ShieldCheck, CircleDollarSign, Percent, BadgePercent, DollarSign, Scan, Sparkles, Bed, Bath, Square, Heart, X, ChevronDown, Check } from "lucide-react";
 
 import AddPropertyForm from "../components/add-property-form";
+
+const PROPERTY_TYPES = [
+  "Flat/Apartment",
+  "Independent/Builder Floor",
+  "Independent House/Villa",
+  "Residential Land",
+  "1 RK/Studio Apartment",
+  "Farm House",
+  "Serviced Apartments",
+  "Other"
+];
+
+const BUDGET_RANGES = ["5 Lac", "10 Lac", "20 Lac", "30 Lac", "40 Lac", "50 Lac", "60 Lac", "70 Lac", "80 Lac", "90 Lac", "1 Cr", "2 Cr", "5 Cr", "10 Cr"];
+const BEDROOM_OPTIONS = ["1 RK/1 BHK", "2 BHK", "3 BHK", "4 BHK", "4+ BHK"];
+const CONSTRUCTION_STATUS = ["New Launch", "Under Construction", "Ready to Move"];
+const POSTED_BY = ["Owner", "Dealer", "Builder"];
 
 function HomeContentInner() {
   const [activeTab, setActiveTab] = useState("Rent");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeFilterCategory, setActiveFilterCategory] = useState("Property Types");
+  const [tempFilters, setTempFilters] = useState({
+    propertyTypes: [] as string[],
+    minBudget: "",
+    maxBudget: "",
+    bedroom: [] as string[],
+    constructionStatus: [] as string[],
+    postedBy: [] as string[]
+  });
+  const [appliedFilters, setAppliedFilters] = useState({
+    propertyTypes: [] as string[],
+    minBudget: "",
+    maxBudget: "",
+    bedroom: [] as string[],
+    constructionStatus: [] as string[],
+    postedBy: [] as string[]
+  });
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +55,49 @@ function HomeContentInner() {
   const [visibleCount, setVisibleCount] = useState(6);
   const propertyGridRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
+
+  const handleFilterChange = (category: keyof typeof tempFilters, value: string) => {
+    setTempFilters(prev => {
+      // Handle array types (propertyTypes, constructionStatus, postedBy)
+      if (Array.isArray(prev[category])) {
+        const currentList = prev[category] as string[];
+        if (currentList.includes(value)) {
+          return { ...prev, [category]: currentList.filter(item => item !== value) };
+        } else {
+          return { ...prev, [category]: [...currentList, value] };
+        }
+      }
+      return prev;
+    });
+  };
+
+  const handleBudgetChange = (type: 'min' | 'max', value: string) => {
+    setTempFilters(prev => ({
+      ...prev,
+      [type === 'min' ? 'minBudget' : 'maxBudget']: value
+    }));
+  };
+
+  const applyFilters = () => {
+    setAppliedFilters(tempFilters);
+    setShowFilters(false);
+  };
+
+  const cancelFilters = () => {
+    setTempFilters(appliedFilters);
+    setShowFilters(false);
+  };
+
+  const clearAllFilters = () => {
+    setTempFilters({
+      propertyTypes: [],
+      minBudget: "",
+      maxBudget: "",
+      bedroom: [],
+      constructionStatus: [],
+      postedBy: []
+    });
+  };
 
   useEffect(() => {
     setVisibleCount(6);
@@ -292,10 +369,73 @@ function HomeContentInner() {
     return () => unsub();
   }, []);
 
+  const parseBudget = (budgetStr: string) => {
+    if (!budgetStr) return 0;
+    const cleanStr = budgetStr.toLowerCase().replace(/,/g, '');
+    if (cleanStr.includes('lac')) {
+      return parseFloat(cleanStr) * 100000;
+    }
+    if (cleanStr.includes('cr')) {
+      return parseFloat(cleanStr) * 10000000;
+    }
+    return parseFloat(cleanStr) || 0;
+  };
+
   const filteredProperties = properties.filter(property => {
     if (!property || !property.id) return false;
     if (!matchesActiveType(property)) return false;
     
+    // Apply Advanced Filters
+    if (appliedFilters.propertyTypes.length > 0) {
+      const pType = (property.type || property.propertyType || '').toLowerCase();
+      const matchesType = appliedFilters.propertyTypes.some(filterType => {
+        if (filterType === "Flat/Apartment") return pType.includes('flat') || pType.includes('apartment');
+        if (filterType === "Independent/Builder Floor") return pType.includes('builder') || pType.includes('floor');
+        if (filterType === "Independent House/Villa") return pType.includes('house') || pType.includes('villa');
+        if (filterType === "Residential Land") return pType.includes('land') || pType.includes('plot');
+        if (filterType === "1 RK/Studio Apartment") return pType.includes('1 rk') || pType.includes('studio');
+        if (filterType === "Farm House") return pType.includes('farm');
+        if (filterType === "Serviced Apartments") return pType.includes('serviced');
+        return pType.includes(filterType.toLowerCase());
+      });
+      if (!matchesType) return false;
+    }
+
+    if (appliedFilters.minBudget) {
+      const min = parseBudget(appliedFilters.minBudget);
+      if (formatPrice(property) < min) return false;
+    }
+
+    if (appliedFilters.maxBudget) {
+      const max = parseBudget(appliedFilters.maxBudget);
+      if (formatPrice(property) > max) return false;
+    }
+
+    if (appliedFilters.bedroom.length > 0) {
+      const beds = property.bedrooms || property.beds || 0;
+      const matchesBedroom = appliedFilters.bedroom.some(b => {
+        if (b === "1 RK/1 BHK") return beds === 1;
+        if (b === "2 BHK") return beds === 2;
+        if (b === "3 BHK") return beds === 3;
+        if (b === "4 BHK") return beds === 4;
+        if (b === "4+ BHK") return beds > 4;
+        return false;
+      });
+      if (!matchesBedroom) return false;
+    }
+    
+    if (appliedFilters.constructionStatus.length > 0) {
+      const status = (property.constructionStatus || property.status || '').toLowerCase();
+      const matchesStatus = appliedFilters.constructionStatus.some(s => status.includes(s.toLowerCase()));
+      if (!matchesStatus) return false;
+    }
+
+    if (appliedFilters.postedBy.length > 0) {
+      const posted = (property.postedBy || property.userType || '').toLowerCase();
+      const matchesPosted = appliedFilters.postedBy.some(p => posted.includes(p.toLowerCase()));
+      if (!matchesPosted) return false;
+    }
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase().trim();
       const title = (property.title || property.name || '').toLowerCase();
@@ -362,6 +502,253 @@ function HomeContentInner() {
                   >
                     Sell Property
                   </button>
+                </div>
+
+                {/* Search Component */}
+                <div className="relative w-full md:w-80">
+                  <div className="bg-[#E0EAFF] rounded-xl flex items-center px-4 py-2.5 transition-all relative z-50">
+                    <SearchIcon className="w-5 h-5 text-[#0066FF] mr-3" />
+                    <input
+                      type="text"
+                      value={searchQuery || ""}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onFocus={() => setShowFilters(true)}
+                      placeholder="Search property, location, price..."
+                      className="bg-transparent border-none focus:ring-0 outline-none text-gray-700 placeholder-gray-500 w-full text-sm font-medium p-0"
+                    />
+                  </div>
+
+                  {/* Filter Overlay */}
+                  {showFilters && (
+                    <div className="absolute top-[120%] left-0 w-[90vw] md:w-[800px] bg-white rounded-xl shadow-2xl border border-gray-100 z-[100] p-6 animate-in fade-in zoom-in-95 duration-200">
+                      
+                      {/* Header */}
+                      <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-4">
+                          <span className="text-gray-400 font-medium">Filters</span>
+                          <button onClick={clearAllFilters} className="text-[#0066FF] text-sm font-bold hover:underline">
+                            Clear all filters
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Tabs */}
+                      <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-4 custom-scrollbar">
+                        {/* Property Types */}
+                        <button 
+                          onClick={() => setActiveFilterCategory("Property Types")}
+                          className={`px-4 py-2 rounded-full border text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${
+                            activeFilterCategory === "Property Types" 
+                            ? "bg-blue-50 border-blue-200 text-[#0066FF]" 
+                            : "border-gray-200 text-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          Property Types({PROPERTY_TYPES.length})
+                          <ChevronDown className={`w-4 h-4 transition-transform ${activeFilterCategory === "Property Types" ? "rotate-180" : ""}`} />
+                        </button>
+                        
+                        {/* Budget */}
+                        <button 
+                          onClick={() => setActiveFilterCategory("Budget")}
+                          className={`px-4 py-2 rounded-full border text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${
+                            activeFilterCategory === "Budget" 
+                            ? "bg-blue-50 border-blue-200 text-[#0066FF]" 
+                            : "border-gray-200 text-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          Budget
+                          <ChevronDown className={`w-4 h-4 transition-transform ${activeFilterCategory === "Budget" ? "rotate-180" : ""}`} />
+                        </button>
+                        
+                        {/* Bedroom */}
+                        <button 
+                          onClick={() => setActiveFilterCategory("Bedroom")}
+                          className={`px-4 py-2 rounded-full border text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${
+                            activeFilterCategory === "Bedroom" 
+                            ? "bg-blue-50 border-blue-200 text-[#0066FF]" 
+                            : "border-gray-200 text-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          Bedroom
+                          <ChevronDown className={`w-4 h-4 transition-transform ${activeFilterCategory === "Bedroom" ? "rotate-180" : ""}`} />
+                        </button>
+                        
+                        {/* Construction Status */}
+                        <button 
+                          onClick={() => setActiveFilterCategory("Construction Status")}
+                          className={`px-4 py-2 rounded-full border text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${
+                            activeFilterCategory === "Construction Status" 
+                            ? "bg-blue-50 border-blue-200 text-[#0066FF]" 
+                            : "border-gray-200 text-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          Construction Status
+                          <ChevronDown className={`w-4 h-4 transition-transform ${activeFilterCategory === "Construction Status" ? "rotate-180" : ""}`} />
+                        </button>
+                        
+                        {/* Posted By */}
+                        <button 
+                          onClick={() => setActiveFilterCategory("Posted By")}
+                          className={`px-4 py-2 rounded-full border text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${
+                            activeFilterCategory === "Posted By" 
+                            ? "bg-blue-50 border-blue-200 text-[#0066FF]" 
+                            : "border-gray-200 text-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          Posted By
+                          <ChevronDown className={`w-4 h-4 transition-transform ${activeFilterCategory === "Posted By" ? "rotate-180" : ""}`} />
+                        </button>
+                      </div>
+
+                      {/* Content Area */}
+                      <div className="min-h-[300px] mb-6">
+                        {activeFilterCategory === "Property Types" && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {PROPERTY_TYPES.map(type => (
+                              <label key={type} className="flex items-center gap-3 cursor-pointer group p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${tempFilters.propertyTypes.includes(type) ? 'bg-[#0066FF] border-[#0066FF]' : 'border-gray-300 bg-white'}`}>
+                                  {tempFilters.propertyTypes.includes(type) && <Check className="w-3.5 h-3.5 text-white" />}
+                                </div>
+                                <input 
+                                  type="checkbox" 
+                                  checked={tempFilters.propertyTypes.includes(type)}
+                                  onChange={() => handleFilterChange('propertyTypes', type)}
+                                  className="hidden"
+                                />
+                                <span className="text-sm text-gray-700 group-hover:text-[#0066FF] font-medium">{type}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {activeFilterCategory === "Budget" && (
+                          <div>
+                            <h4 className="font-semibold text-gray-900 mb-4">Select Price Range</h4>
+                            <div className="flex gap-4 items-center max-w-lg">
+                              <div className="relative w-full">
+                                <select 
+                                  value={tempFilters.minBudget}
+                                  onChange={(e) => handleBudgetChange('min', e.target.value)}
+                                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-[#0066FF] focus:ring-2 focus:ring-blue-100 outline-none appearance-none cursor-pointer"
+                                >
+                                  <option value="">Min Budget</option>
+                                  {BUDGET_RANGES.map(b => <option key={`min-${b}`} value={b}>{b}</option>)}
+                                </select>
+                                <ChevronDown className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              </div>
+                              <span className="text-gray-400 font-medium">to</span>
+                              <div className="relative w-full">
+                                <select 
+                                  value={tempFilters.maxBudget}
+                                  onChange={(e) => handleBudgetChange('max', e.target.value)}
+                                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-[#0066FF] focus:ring-2 focus:ring-blue-100 outline-none appearance-none cursor-pointer"
+                                >
+                                  <option value="">Max Budget</option>
+                                  {BUDGET_RANGES.map(b => <option key={`max-${b}`} value={b}>{b}</option>)}
+                                </select>
+                                <ChevronDown className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {activeFilterCategory === "Bedroom" && (
+                          <div>
+                            <h4 className="font-semibold text-gray-900 mb-4">Number of Bedrooms</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {BEDROOM_OPTIONS.map(opt => (
+                                <button
+                                  key={opt}
+                                  onClick={() => handleFilterChange('bedroom', opt)}
+                                  className={`px-6 py-2.5 rounded-full border text-sm font-medium transition-all ${
+                                    tempFilters.bedroom.includes(opt)
+                                    ? "bg-blue-50 border-blue-200 text-[#0066FF]"
+                                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                                  }`}
+                                >
+                                  {tempFilters.bedroom.includes(opt) ? "✓ " : "+ "}{opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {activeFilterCategory === "Construction Status" && (
+                          <div>
+                            <h4 className="font-semibold text-gray-900 mb-4">Construction Status</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {CONSTRUCTION_STATUS.map(status => (
+                                <button
+                                  key={status}
+                                  onClick={() => handleFilterChange('constructionStatus', status)}
+                                  className={`px-6 py-2.5 rounded-full border text-sm font-medium transition-all ${
+                                    tempFilters.constructionStatus.includes(status)
+                                    ? "bg-blue-50 border-blue-200 text-[#0066FF]"
+                                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                                  }`}
+                                >
+                                  {tempFilters.constructionStatus.includes(status) ? "✓ " : "+ "}{status}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {activeFilterCategory === "Posted By" && (
+                          <div>
+                            <h4 className="font-semibold text-gray-900 mb-4">Posted By</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {POSTED_BY.map(poster => (
+                                <button
+                                  key={poster}
+                                  onClick={() => handleFilterChange('postedBy', poster)}
+                                  className={`px-6 py-2.5 rounded-full border text-sm font-medium transition-all ${
+                                    tempFilters.postedBy.includes(poster)
+                                    ? "bg-blue-50 border-blue-200 text-[#0066FF]"
+                                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                                  }`}
+                                >
+                                  {tempFilters.postedBy.includes(poster) ? "✓ " : "+ "}{poster}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="mt-4 pt-6 border-t border-gray-100">
+                        <div className="mb-6">
+                          <a href="#" className="text-[#0066FF] text-sm hover:underline font-medium inline-flex items-center gap-1 group">
+                            Looking for commercial properties? Click here
+                            <span className="group-hover:translate-x-1 transition-transform">→</span>
+                          </a>
+                        </div>
+                        <div className="flex gap-4">
+                          <button 
+                            onClick={cancelFilters}
+                            className="text-[#0066FF] font-bold px-6 py-3 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            onClick={applyFilters}
+                            className="bg-[#0066FF] hover:bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:shadow-xl transition-all ml-auto"
+                          >
+                            Search
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+                  {/* Backdrop */}
+                  {showFilters && (
+                    <div 
+                      className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[90]" 
+                      onClick={cancelFilters}
+                    />
+                  )}
                 </div>
 
                 {/* Browse Properties Button */}
@@ -522,19 +909,7 @@ function HomeContentInner() {
             ))}
           </div>
 
-          {/* Search Bar - Right */}
-          <div className="relative w-full md:w-80">
-            <div className="bg-[#E0EAFF] rounded-xl flex items-center px-4 py-2.5 transition-all">
-              <SearchIcon className="w-5 h-5 text-[#0066FF] mr-3" />
-              <input
-                type="text"
-                value={searchQuery || ""}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search property, location, price..."
-                className="bg-transparent border-none focus:ring-0 outline-none text-gray-700 placeholder-gray-500 w-full text-sm font-medium p-0"
-              />
-            </div>
-          </div>
+
         </div>
 
         {activeTab === "Sell" ? (

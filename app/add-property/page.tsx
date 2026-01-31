@@ -30,19 +30,19 @@ function Stepper({ steps, currentStep }: { steps: { id: number; label: string }[
               <div key={step.id} className="flex items-start gap-4">
                 <div className={`relative z-10 flex items-center justify-center w-6 h-6 rounded-full border-2 ${
                   isCompleted 
-                    ? "bg-[#0085FF] border-[#0085FF]" 
+                    ? "bg-[#0066FF] border-[#0066FF]" 
                     : isCurrent 
-                      ? "bg-white border-[#0085FF]" 
+                      ? "bg-white border-[#0066FF]" 
                       : "bg-white border-gray-300"
                 }`}>
                   {isCompleted ? (
                     <Check className="w-3 h-3 text-white" />
                   ) : isCurrent ? (
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#0085FF]" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#0066FF]" />
                   ) : null}
                 </div>
                 <div>
-                  <p className={`text-sm font-medium ${isCurrent ? "text-[#0085FF]" : "text-gray-600"}`}>
+                  <p className={`text-sm font-medium ${isCurrent ? "text-[#0066FF]" : "text-gray-600"}`}>
                     {step.label}
                   </p>
                   <p className="text-xs text-gray-400">Step {step.id}</p>

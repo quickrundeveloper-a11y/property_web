@@ -28,7 +28,7 @@ export default function Sitemap() {
     {
       title: "Resources",
       links: [
-        { name: "Blog", href: "/blog" },
+        { name: "blog", href: "/blog" },
         { name: "Guides", href: "/guides" },
         { name: "FAQ", href: "/faq" },
         { name: "Help Center", href: "/help" },

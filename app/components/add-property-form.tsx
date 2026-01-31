@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2, Building2, Home, Users, Briefcase, Store, Map, Warehouse, Factory, Hotel, MoreHorizontal, Building, Armchair, LandPlot, Archive, Coffee, ArrowUp, Sprout } from "lucide-react";
 import { db, storage, auth } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -515,135 +515,146 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
   const renderStep1 = () => (
     <div className="space-y-8 animate-fadeIn">
+      {/* Property Type Section (Moved to Top) */}
       <div>
-        <h3 className="text-lg font-bold text-[#000929] mb-4">I'm looking to</h3>
-        <div className="flex flex-wrap gap-3">
+        <h3 className="text-sm font-medium text-gray-500 mb-3">Property Type</h3>
+        <div className="flex flex-wrap gap-4 mb-6">
           {[
-            { label: "Sell", value: "sell" },
-            { label: "Rent / Lease", value: "rent" }
+            { label: "Residential", value: "residential" },
+            { label: "Commercial", value: "commercial" }
           ].map((option) => (
             <button
               key={option.value}
               type="button"
-              onClick={() => {
-                const newType = option.value as "sell" | "rent";
-                setLookingTo(newType);
-                
-                let newCategory = formData.propertyCategory;
-                // If switching to Rent and category is Plot/Land, reset to Flat/Apartment
-                if (newType === "rent" && formData.propertyCategory === "Plot / Land") {
-                    newCategory = "Flat/Apartment";
-                }
-
-                setFormData({ ...formData, type: newType, propertyCategory: newCategory });
-              }}
-              className={`px-6 py-2.5 rounded-full border text-sm font-medium transition-all ${
-                lookingTo === option.value
-                  ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF] shadow-sm" 
-                  : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+              onClick={() => setFormData({
+                ...formData, 
+                propertyType: option.value as "residential" | "commercial", 
+                propertyCategory: option.value === "residential" ? "Flat/Apartment" : "Office"
+              })}
+              className={`px-8 py-3 rounded-lg text-base font-medium transition-all min-w-[140px] ${
+                formData.propertyType === option.value
+                  ? "bg-blue-50 text-[#0066FF] border border-blue-50" 
+                  : "bg-white border border-gray-200 text-gray-900 hover:border-gray-300"
               }`}
             >
               {option.label}
             </button>
           ))}
         </div>
-      </div>
 
-      <div>
-        <h3 className="text-lg font-bold text-[#000929] mb-4">What kind of property do you have?</h3>
-        <div className="flex items-center gap-6 mb-6">
-          <label className="flex items-center cursor-pointer gap-2">
-            <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-              formData.propertyType === "residential" ? "border-[#0085FF]" : "border-gray-400"
-            }`}>
-              {formData.propertyType === "residential" && (
-                <div className="w-2.5 h-2.5 rounded-full bg-[#0085FF]" />
-              )}
-            </div>
-            <input 
-              type="radio" 
-              name="propertyType" 
-              value="residential" 
-              checked={formData.propertyType === "residential"}
-              onChange={() => setFormData({...formData, propertyType: "residential", propertyCategory: "Flat/Apartment"})}
-              className="hidden" 
-            />
-            <span className={`${formData.propertyType === "residential" ? "text-[#000929] font-bold" : "text-gray-500 font-medium"}`}>Residential</span>
-          </label>
-          
-          <label className="flex items-center cursor-pointer gap-2">
-            <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-              formData.propertyType === "commercial" ? "border-[#0085FF]" : "border-gray-400"
-            }`}>
-              {formData.propertyType === "commercial" && (
-                <div className="w-2.5 h-2.5 rounded-full bg-[#0085FF]" />
-              )}
-            </div>
-            <input 
-              type="radio" 
-              name="propertyType" 
-              value="commercial" 
-              checked={formData.propertyType === "commercial"} 
-              onChange={() => setFormData({...formData, propertyType: "commercial", propertyCategory: "Office"})}
-              className="hidden" 
-            />
-            <span className={`${formData.propertyType === "commercial" ? "text-[#000929] font-bold" : "text-gray-500 font-medium"}`}>Commercial</span>
-          </label>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
+        {/* Property Category Grid (Image 1 Style) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {(() => {
             let options = [];
             if (formData.propertyType === "residential") {
                 if (lookingTo === "rent") {
                      options = [
-                        "Flat/Apartment", 
-                        "Independent House / Villa", 
-                        "Independent / Builder Floor", 
-                        "1 RK/ Studio Apartment", 
-                        "Serviced Apartment", 
-                        "Farmhouse", 
-                        "Other"
+                        { label: "Apartment", value: "Flat/Apartment", icon: Building2 },
+                        { label: "Independent House", value: "Independent House / Villa", icon: Home },
+                        { label: "Duplex", value: "Duplex", icon: Home },
+                        { label: "Independent Floor", value: "Independent / Builder Floor", icon: Building },
+                        { label: "Villa", value: "Villa", icon: Home },
+                        { label: "Penthouse", value: "Penthouse", icon: ArrowUp },
+                        { label: "Studio", value: "1 RK/ Studio Apartment", icon: Armchair },
+                        { label: "Plot", value: "Plot / Land", icon: LandPlot },
+                        { label: "Farm House", value: "Farmhouse", icon: Warehouse },
+                        { label: "Agricultural Land", value: "Agricultural Land", icon: Sprout }
                       ];
+                } else if (lookingTo === "pg") {
+                    options = [
+                        { label: "Paying Guest", value: "Paying Guest", icon: Users },
+                        { label: "Co-living", value: "Co-living", icon: Users },
+                        { label: "Shared Flat", value: "Shared Flat", icon: Building2 },
+                        { label: "Hostel", value: "Hostel", icon: Home }
+                    ];
                 } else {
                      options = [
-                        "Flat/Apartment", 
-                        "Independent House / Villa", 
-                        "Independent / Builder Floor", 
-                        "Plot / Land", 
-                        "1 RK/ Studio Apartment", 
-                        "Serviced Apartment", 
-                        "Farmhouse", 
-                        "Other"
+                        { label: "Apartment", value: "Flat/Apartment", icon: Building2 },
+                        { label: "Independent House", value: "Independent House / Villa", icon: Home },
+                        { label: "Duplex", value: "Duplex", icon: Home },
+                        { label: "Independent Floor", value: "Independent / Builder Floor", icon: Building },
+                        { label: "Villa", value: "Villa", icon: Home },
+                        { label: "Penthouse", value: "Penthouse", icon: ArrowUp },
+                        { label: "Studio", value: "1 RK/ Studio Apartment", icon: Armchair },
+                        { label: "Plot", value: "Plot / Land", icon: LandPlot },
+                        { label: "Farm House", value: "Farmhouse", icon: Warehouse },
+                        { label: "Agricultural Land", value: "Agricultural Land", icon: Sprout }
                       ];
                 }
             } else {
                 options = [
-                    "Office",
-                    "Retail",
-                    "Plot / Land",
-                    "Storage",
-                    "Industry",
-                    "Hospitality",
-                    "Other"
+                    { label: "Office", value: "Office", icon: Briefcase },
+                    { label: "Retail", value: "Retail", icon: Store },
+                    { label: "Plot / Land", value: "Plot / Land", icon: LandPlot },
+                    { label: "Storage", value: "Storage", icon: Archive },
+                    { label: "Industry", value: "Industry", icon: Factory },
+                    { label: "Hospitality", value: "Hospitality", icon: Coffee },
+                    { label: "Other", value: "Other", icon: MoreHorizontal }
                 ];
             }
             
-            return options.map(type => (
+            return options.map((opt) => {
+                const Icon = opt.icon;
+                return (
                 <button
-                  key={type}
+                  key={opt.value}
                   type="button"
-                  onClick={() => setFormData({...formData, propertyCategory: type})}
-                  className={`px-4 py-2 rounded-full border text-sm transition-all ${
-                    formData.propertyCategory === type 
-                      ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF] font-medium shadow-sm" 
+                  onClick={() => setFormData({...formData, propertyCategory: opt.value})}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all h-32 hover:shadow-md ${
+                    formData.propertyCategory === opt.value
+                      ? "bg-blue-50 border-[#0066FF] text-[#0066FF] shadow-sm" 
                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                 >
-                  {type}
+                  <Icon className={`w-8 h-8 mb-3 ${formData.propertyCategory === opt.value ? "text-[#0066FF]" : "text-gray-400"}`} />
+                  <span className="text-sm font-medium text-center leading-tight">{opt.label}</span>
                 </button>
-            ));
+            )});
           })()}
+        </div>
+      </div>
+
+      {/* Looking To Section (Moved to Bottom) */}
+      <div>
+        <h3 className="text-sm font-medium text-gray-500 mb-3">Looking to</h3>
+        <div className="flex flex-wrap gap-4">
+          {[
+            { label: "Rent", value: "rent" },
+            { label: "Sell", value: "sell" },
+            { label: "PG/Co-living", value: "pg" }
+          ].filter(opt => formData.propertyType === 'residential' || opt.value !== 'pg').map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                const newType = option.value as "sell" | "rent" | "pg";
+                setLookingTo(newType);
+                
+                let newCategory = formData.propertyCategory;
+                // Reset category logic based on new type
+                if (newType === "rent" && formData.propertyCategory === "Plot / Land") {
+                    newCategory = "Flat/Apartment";
+                }
+                if (newType === "pg") {
+                    newCategory = "Paying Guest";
+                    // PG is strictly residential
+                    if (formData.propertyType !== "residential") {
+                        setFormData({ ...formData, type: newType, propertyType: "residential", propertyCategory: newCategory });
+                        return;
+                    }
+                }
+
+                setFormData({ ...formData, type: newType, propertyCategory: newCategory });
+              }}
+              className={`px-8 py-3 rounded-lg text-base font-medium transition-all min-w-[120px] ${
+                lookingTo === option.value
+                  ? "bg-blue-50 text-[#0066FF] border border-blue-50" 
+                  : "bg-white border border-gray-200 text-gray-900 hover:border-gray-300"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -1533,7 +1544,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           <button
             type="button"
             onClick={handleNext}
-            className="ml-auto px-8 py-2.5 rounded-lg bg-[#0085FF] hover:bg-[#006ACC] text-white font-medium transition-colors shadow-sm shadow-blue-200"
+            className="ml-auto px-8 py-2.5 rounded-lg bg-[#0066FF] hover:bg-blue-700 text-white font-medium transition-colors shadow-sm shadow-blue-200"
           >
             Next
           </button>
@@ -1541,7 +1552,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           <button
             type="submit"
             disabled={loading}
-            className="ml-auto px-8 py-2.5 rounded-lg bg-[#0085FF] hover:bg-[#006ACC] text-white font-medium transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-blue-200"
+            className="ml-auto px-8 py-2.5 rounded-lg bg-[#0066FF] hover:bg-blue-700 text-white font-medium transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-blue-200"
           >
             {loading ? (propertyId ? "Updating..." : "Posting...") : (propertyId ? "Update Property" : "Post Property")}
           </button>
@@ -1552,7 +1563,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         <div className="mt-4">
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-[#0085FF] transition-all duration-300"
+              className="h-full bg-[#0066FF] transition-all duration-300"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
