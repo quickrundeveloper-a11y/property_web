@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import AddPropertyForm from "@/app/components/add-property-form";
+import { Stepper, PropertyScoreCard, steps } from "@/app/components/stepper";
 import { ArrowLeft } from "lucide-react";
 
 export default function EditPropertyPage() {
@@ -13,6 +14,8 @@ export default function EditPropertyPage() {
   const id = params?.id as string;
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [propertyScore, setPropertyScore] = useState(80);
 
   useEffect(() => {
     if (!id) return;
@@ -48,9 +51,9 @@ export default function EditPropertyPage() {
   if (!property) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+    <div className="min-h-screen bg-[#F0F5FA] pb-12">
+      <div className="bg-white border-b sticky top-0 z-10 mb-8">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
           <button 
             onClick={() => router.back()}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -61,14 +64,37 @@ export default function EditPropertyPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <AddPropertyForm 
-            defaultType={property.type} 
-            initialData={property} 
-            propertyId={id}
-            onSuccess={() => router.push("/manage/dashboard")}
-          />
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="flex flex-col md:flex-row gap-8">
+          {/* Sidebar */}
+          <div className="md:w-1/4 hidden md:block">
+            <div className="sticky top-24">
+              <div className="space-y-6">
+                <Stepper 
+                  steps={steps} 
+                  currentStep={currentStep} 
+                  onStepClick={setCurrentStep}
+                  maxStep={5}
+                />
+                <PropertyScoreCard score={propertyScore} />
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="md:w-3/4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <AddPropertyForm 
+                defaultType={property.type} 
+                initialData={property} 
+                propertyId={id}
+                onSuccess={() => router.push("/manage/dashboard")}
+                currentStep={currentStep}
+                onStepChange={setCurrentStep}
+                onScoreChange={setPropertyScore}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

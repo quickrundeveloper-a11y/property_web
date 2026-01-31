@@ -40,4 +40,27 @@ export interface Property {
   floorNumber?: number;
   furnishingStatus?: string;
   features?: string[];
+  balconies?: string | number;
+  builtUpArea?: string | number;
+  superBuiltUpArea?: string | number;
+  otherRooms?: string[];
+  coveredParking?: string | number;
+  openParking?: string | number;
+  availabilityStatus?: string;
+  ageOfProperty?: string;
+  facing?: string;
+  overlooking?: string[];
+  waterSource?: string[];
+  flooring?: string;
+  powerBackup?: string;
+  facingRoadWidth?: string | number;
+  facingRoadUnit?: string;
+  possessionBy?: string;
+  ownership?: string;
+  pricePerSqFt?: number | string;
+  allInclusivePrice?: boolean;
+  taxExcluded?: boolean;
+  priceNegotiable?: boolean;
+  uniqueDescription?: string;
+  floorPlan?: string;
 }

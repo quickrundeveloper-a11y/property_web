@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { MapPin, Loader2, Building2, Home, Users, Briefcase, Store, Map, Warehouse, Factory, Hotel, MoreHorizontal, Building, Armchair, LandPlot, Archive, Coffee, ArrowUp, Sprout } from "lucide-react";
+import { MapPin, Loader2, Building2, Home, Users, Briefcase, Store, Map, Warehouse, Factory, Hotel, MoreHorizontal, Building, Armchair, LandPlot, Archive, Coffee, ArrowUp, Sprout, BedDouble, Bath, Car, Sofa, Ruler, Key, Compass, Waves, Trees, Droplets, Layers, Zap, Shield, Fan } from "lucide-react";
 import { db, storage, auth } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -46,6 +46,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [video, setVideo] = useState<File | null>(null);
   const [existingVideo, setExistingVideo] = useState<string | null>(null);
+  const [floorPlan, setFloorPlan] = useState<File | null>(null);
+  const [existingFloorPlan, setExistingFloorPlan] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     location: "",
@@ -77,6 +79,27 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
     openSides: "" as string | number,
     anyConstruction: "" as "Yes" | "No" | "",
     possessionBy: "" as string,
+    balconies: "",
+    builtUpArea: "",
+    superBuiltUpArea: "",
+    otherRooms: [] as string[],
+    coveredParking: "",
+    openParking: "",
+    availabilityStatus: "",
+    ageOfProperty: "",
+    facing: "",
+    overlooking: [] as string[],
+    waterSource: [] as string[],
+    flooring: "",
+    powerBackup: "",
+    facingRoadWidth: "",
+    facingRoadUnit: "Meter",
+    ownership: "",
+    pricePerSqFt: "",
+    allInclusivePrice: false,
+    taxExcluded: false,
+    priceNegotiable: false,
+    uniqueDescription: "",
   });
 
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -106,13 +129,38 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         floorNumber: initialData.floorNumber || "",
         furnishingStatus: initialData.furnishingStatus || "",
         builderFloorType: "Single Floor",
-        plotArea: initialData.area || ""
+        plotArea: initialData.area || "",
+        balconies: initialData.balconies ? String(initialData.balconies) : "",
+        builtUpArea: initialData.builtUpArea ? String(initialData.builtUpArea) : "",
+        superBuiltUpArea: initialData.superBuiltUpArea ? String(initialData.superBuiltUpArea) : "",
+        otherRooms: initialData.otherRooms || [],
+        coveredParking: initialData.coveredParking ? String(initialData.coveredParking) : "",
+        openParking: initialData.openParking ? String(initialData.openParking) : "",
+        availabilityStatus: initialData.availabilityStatus || "",
+        ageOfProperty: initialData.ageOfProperty || "",
+        facing: initialData.facing || "",
+        overlooking: initialData.overlooking || [],
+        waterSource: initialData.waterSource || [],
+        flooring: initialData.flooring || "",
+        powerBackup: initialData.powerBackup || "",
+        facingRoadWidth: initialData.facingRoadWidth ? String(initialData.facingRoadWidth) : "",
+        facingRoadUnit: initialData.facingRoadUnit || "Meter",
+        possessionBy: initialData.possessionBy || "",
+        ownership: initialData.ownership || "",
+        pricePerSqFt: initialData.pricePerSqFt ? String(initialData.pricePerSqFt) : "",
+        allInclusivePrice: initialData.allInclusivePrice || false,
+        taxExcluded: initialData.taxExcluded || false,
+        priceNegotiable: initialData.priceNegotiable || false,
+        uniqueDescription: initialData.uniqueDescription || "",
       });
       if (initialData.images) {
         setExistingImages(initialData.images);
       }
       if (initialData.videoUrl) {
         setExistingVideo(initialData.videoUrl);
+      }
+      if (initialData.floorPlan) {
+        setExistingFloorPlan(initialData.floorPlan);
       }
       if (initialData.type) {
         setLookingTo(initialData.type === "sell" ? "sell" : "rent");
@@ -444,6 +492,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
     const newErrors: Record<string, boolean> = {};
     let isValid = true;
 
+    // Debug validation
+    console.log(`Validating Step ${step}`, formData);
+
     switch (step) {
       case 1:
         if (!formData.propertyCategory) {
@@ -458,7 +509,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         }
         break;
       case 3:
-        const isLand = formData.propertyCategory.includes("Land") || formData.propertyCategory.includes("Plot");
+        // Ensure property category logic handles both Land/Plot and others correctly
+        const isLand = formData.propertyCategory?.includes("Land") || formData.propertyCategory?.includes("Plot");
         
         if (isLand) {
              if (!formData.plotArea) newErrors.plotArea = true;
@@ -474,13 +526,36 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
            if (!formData.totalFloors) newErrors.totalFloors = true;
            if (!formData.floorNumber) newErrors.floorNumber = true;
            if (!formData.area) newErrors.area = true;
-           if (!formData.possessionBy) newErrors.possessionBy = true;
+           
+           if (!formData.availabilityStatus) {
+             newErrors.availabilityStatus = true;
+           } else if (formData.availabilityStatus === "Ready to move") {
+             if (!formData.ageOfProperty) newErrors.ageOfProperty = true;
+           } else if (formData.availabilityStatus === "Under construction") {
+             if (!formData.possessionBy) newErrors.possessionBy = true;
+           }
         }
         
         if (Object.keys(newErrors).length > 0) isValid = false;
         break;
       case 4:
         return true;
+      case 5:
+        if (formData.uniqueDescription && formData.uniqueDescription.length < 30) {
+          newErrors.uniqueDescription = true;
+          isValid = false;
+        }
+        
+        if (!formData.ownership) {
+          newErrors.ownership = true;
+          isValid = false;
+        }
+        
+        if (!formData.price) {
+          newErrors.price = true;
+          isValid = false;
+        }
+        break;
       default:
         return true;
     }
@@ -898,6 +973,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         
         <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6`}>
           {formData.propertyType === "residential" && (
+            <>
             <div>
               <label className="block text-sm mb-2 text-gray-600 font-medium">Bedrooms</label>
               <div className="flex gap-2">
@@ -907,17 +983,38 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                     type="button"
                     onClick={() => setFormData({...formData, bedrooms: num === "5+" ? "5" : num})}
                     className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                     formData.bedrooms === (num === "5+" ? "5" : num)
-                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                       : `bg-white ${errors.bedrooms ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
-                   }`}
-                 >
-                   {num}
-                 </button>
-               ))}
-             </div>
-           </div>
-         )}
+                      formData.bedrooms === (num === "5+" ? "5" : num)
+                        ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                        : `bg-white ${errors.bedrooms ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm mb-2 text-gray-600 font-medium">Balconies</label>
+              <div className="flex gap-2">
+                {["0", "1", "2", "3+"].map(num => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setFormData({...formData, balconies: num})}
+                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      formData.balconies === num
+                        ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            </div>
+            </>
+          )}
          
          <div>
              <label className="block text-sm mb-2 text-gray-600 font-medium">{formData.propertyType === "commercial" ? "Washrooms" : "Bathrooms"}</label>
@@ -938,25 +1035,32 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                ))}
              </div>
          </div>
-
-         <div>
-              <label className="block text-sm mb-2 text-gray-600 font-medium">Furnishing Status</label>
-              <select
-                className={`w-full p-2.5 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900 ${errors.furnishingStatus ? "border-red-500" : "border-gray-300"}`}
-                value={formData.furnishingStatus}
-                onChange={e => setFormData({...formData, furnishingStatus: e.target.value})}
-              >
-                 <option value="">Select Status</option>
-                 <option value="furnished">Fully Furnished</option>
-                 <option value="semi-furnished">Semi-Furnished</option>
-                 <option value="unfurnished">Unfurnished</option>
-               </select>
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="mb-6">
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Furnishing Status</label>
+             <div className="flex gap-3">
+               {["Fully Furnished", "Semi-Furnished", "Unfurnished"].map(status => (
+                 <button
+                   key={status}
+                   type="button"
+                   onClick={() => setFormData({...formData, furnishingStatus: status === "Fully Furnished" ? "furnished" : status === "Semi-Furnished" ? "semi-furnished" : "unfurnished"})}
+                   className={`px-4 py-2 rounded-full border text-sm font-medium transition-all flex items-center gap-2 ${
+                     formData.furnishingStatus === (status === "Fully Furnished" ? "furnished" : status === "Semi-Furnished" ? "semi-furnished" : "unfurnished")
+                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                   }`}
+                 >
+                   <Sofa className="w-4 h-4" />
+                   {status}
+                 </button>
+               ))}
+             </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
            <div>
-             <label className="block text-sm mb-2 text-gray-600 font-medium">Area Details</label>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Carpet Area</label>
              <div className="flex gap-2">
                <input
                  type="text"
@@ -967,75 +1071,247 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                  placeholder="Size"
                />
                <select
-                 className="w-32 p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
+                 className="w-24 p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
                  value={formData.units}
                  onChange={e => setFormData({...formData, units: e.target.value})}
                >
-                 <option value="sqft">Sq.ft.</option>
-                 <option value="sqyards">Sq.yards</option>
-                 <option value="sqm">Sq.m.</option>
+                 <option value="sqft">Sq.ft</option>
+                 <option value="sqyards">Sq.yrd</option>
+                 <option value="sqm">Sq.m</option>
                  <option value="acres">Acres</option>
                  <option value="marla">Marla</option>
                  <option value="cents">Cents</option>
-                 <option value="bigha">Bigha</option>
-                 <option value="kottah">Kottah</option>
-                 <option value="kanal">Kanal</option>
-                 <option value="grounds">Grounds</option>
-                 <option value="ares">Ares</option>
-                 <option value="biswa">Biswa</option>
-                 <option value="guntha">Guntha</option>
-                 <option value="aankadam">Aankadam</option>
-                 <option value="hectares">Hectares</option>
-                 <option value="rood">Rood</option>
-                 <option value="chataks">Chataks</option>
-                 <option value="perch">Perch</option>
                </select>
              </div>
            </div>
            
-           <div className="grid grid-cols-2 gap-4">
-               <div>
-                 <label className="block text-sm mb-2 text-gray-600 font-medium">Total Floors</label>
-                 <input
-                   type="number"
-                   className={`w-full p-2.5 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.totalFloors ? "border-red-500" : "border-gray-300"}`}
-                   value={formData.totalFloors}
-                   onChange={e => setFormData({...formData, totalFloors: e.target.value})}
-                   placeholder="e.g. 5"
-                 />
+           <div>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Built-up Area</label>
+             <div className="flex gap-2">
+               <input
+                 type="text"
+                 className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+                 value={formData.builtUpArea}
+                 onChange={e => setFormData({...formData, builtUpArea: e.target.value})}
+                 placeholder="Size"
+               />
+               <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 text-sm">
+                 {formData.units}
                </div>
-               <div>
-                 <label className="block text-sm mb-2 text-gray-600 font-medium">Floor No.</label>
-                 <input
-                   type="number"
-                   className={`w-full p-2.5 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.floorNumber ? "border-red-500" : "border-gray-300"}`}
-                   value={formData.floorNumber}
-                   onChange={e => setFormData({...formData, floorNumber: e.target.value})}
-                   placeholder="e.g. 2"
-                 />
+             </div>
+           </div>
+
+           <div>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Super Built-up Area</label>
+             <div className="flex gap-2">
+               <input
+                 type="text"
+                 className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+                 value={formData.superBuiltUpArea}
+                 onChange={e => setFormData({...formData, superBuiltUpArea: e.target.value})}
+                 placeholder="Size"
+               />
+               <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 text-sm">
+                 {formData.units}
                </div>
+             </div>
            </div>
         </div>
-
-        {/* Possession By for Regular Properties too */}
-        <div className="mb-6">
-             <h3 className="text-lg font-bold text-[#000929] mb-4">Possession By</h3>
+        
+        {formData.propertyType === "residential" && (
+          <div className="mb-6">
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Other Rooms</label>
              <div className="flex flex-wrap gap-3">
-               {["Immediate", "Within 3 Months", "Within 6 Months", "Select Year +"].map(opt => (
+               {["Pooja Room", "Study Room", "Servant Room", "Store Room"].map(room => (
                  <button
-                   key={opt}
+                   key={room}
                    type="button"
-                   onClick={() => setFormData({...formData, possessionBy: opt})}
+                   onClick={() => {
+                     const current = formData.otherRooms || [];
+                     if (current.includes(room)) {
+                       setFormData({...formData, otherRooms: current.filter(r => r !== room)});
+                     } else {
+                       setFormData({...formData, otherRooms: [...current, room]});
+                     }
+                   }}
                    className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-                     formData.possessionBy === opt
+                     (formData.otherRooms || []).includes(room)
                        ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                       : `bg-white ${errors.possessionBy ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
+                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
                    }`}
                  >
-                   {opt}
+                   {room}
                  </button>
                ))}
              </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label className="block text-sm mb-2 text-gray-600 font-medium">Reserved Parking</label>
+              <div className="grid grid-cols-2 gap-4">
+                 {/* Covered Parking Counter */}
+                 <div>
+                   <span className="text-xs text-gray-500 block mb-1">Covered Parking</span>
+                   <div className="flex items-center border border-gray-200 rounded-lg bg-white">
+                     <button 
+                       type="button"
+                       onClick={() => {
+                         const val = parseInt(formData.coveredParking || "0");
+                         if (val > 0) setFormData({...formData, coveredParking: String(val - 1)});
+                       }}
+                       className="px-3 py-2 text-gray-500 hover:bg-gray-50 rounded-l-lg"
+                     >
+                       -
+                     </button>
+                     <input 
+                       type="text" 
+                       value={formData.coveredParking || "0"}
+                       readOnly
+                       className="w-full text-center text-gray-900 font-medium focus:outline-none"
+                     />
+                     <button 
+                       type="button"
+                       onClick={() => {
+                         const val = parseInt(formData.coveredParking || "0");
+                         setFormData({...formData, coveredParking: String(val + 1)});
+                       }}
+                       className="px-3 py-2 text-gray-500 hover:bg-gray-50 rounded-r-lg"
+                     >
+                       +
+                     </button>
+                   </div>
+                 </div>
+                 
+                 {/* Open Parking Counter */}
+                 <div>
+                   <span className="text-xs text-gray-500 block mb-1">Open Parking</span>
+                   <div className="flex items-center border border-gray-200 rounded-lg bg-white">
+                     <button 
+                       type="button"
+                       onClick={() => {
+                         const val = parseInt(formData.openParking || "0");
+                         if (val > 0) setFormData({...formData, openParking: String(val - 1)});
+                       }}
+                       className="px-3 py-2 text-gray-500 hover:bg-gray-50 rounded-l-lg"
+                     >
+                       -
+                     </button>
+                     <input 
+                       type="text" 
+                       value={formData.openParking || "0"}
+                       readOnly
+                       className="w-full text-center text-gray-900 font-medium focus:outline-none"
+                     />
+                     <button 
+                       type="button"
+                       onClick={() => {
+                         const val = parseInt(formData.openParking || "0");
+                         setFormData({...formData, openParking: String(val + 1)});
+                       }}
+                       className="px-3 py-2 text-gray-500 hover:bg-gray-50 rounded-r-lg"
+                     >
+                       +
+                     </button>
+                   </div>
+                 </div>
+              </div>
+            </div>
+            
+            <div>
+               <label className="block text-sm mb-2 text-gray-600 font-medium">Floor Details</label>
+               <div className="grid grid-cols-2 gap-4">
+                 <div>
+                   <select
+                     className={`w-full p-2.5 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900 ${errors.totalFloors ? "border-red-500" : "border-gray-300"}`}
+                     value={formData.totalFloors}
+                     onChange={e => setFormData({...formData, totalFloors: e.target.value})}
+                   >
+                     <option value="">Total Floors</option>
+                     {Array.from({length: 50}, (_, i) => i + 1).map(num => (
+                       <option key={num} value={num}>{num}</option>
+                     ))}
+                   </select>
+                 </div>
+                 <div>
+                   <select
+                     className={`w-full p-2.5 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900 ${errors.floorNumber ? "border-red-500" : "border-gray-300"}`}
+                     value={formData.floorNumber}
+                     onChange={e => setFormData({...formData, floorNumber: e.target.value})}
+                   >
+                     <option value="">Floor No.</option>
+                     {Array.from({length: parseInt(formData.totalFloors || "50")}, (_, i) => i + 1).map(num => (
+                       <option key={num} value={num}>{num}</option>
+                     ))}
+                   </select>
+                 </div>
+               </div>
+            </div>
+        </div>
+
+        <div className="mb-6">
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Availability Status</label>
+             <div className="flex gap-3 mb-4">
+               {["Ready to move", "Under construction"].map(status => (
+                 <button
+                   key={status}
+                   type="button"
+                   onClick={() => setFormData({...formData, availabilityStatus: status})}
+                   className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
+                     formData.availabilityStatus === status
+                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                   }`}
+                 >
+                   {status}
+                 </button>
+               ))}
+             </div>
+             
+             {formData.availabilityStatus === "Ready to move" && (
+               <div>
+                 <label className="block text-sm mb-2 text-gray-600 font-medium">Age of Property</label>
+                 <div className="flex flex-wrap gap-3">
+                   {["0-1 Years", "1-5 Years", "5-10 Years", "10+ Years"].map(age => (
+                     <button
+                       key={age}
+                       type="button"
+                       onClick={() => setFormData({...formData, ageOfProperty: age})}
+                       className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
+                         formData.ageOfProperty === age
+                           ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                           : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                       }`}
+                     >
+                       {age}
+                     </button>
+                   ))}
+                 </div>
+               </div>
+             )}
+
+             {formData.availabilityStatus === "Under construction" && (
+               <div>
+                 <label className="block text-sm mb-2 text-gray-600 font-medium">Possession By</label>
+                 <div className="flex flex-wrap gap-3">
+                   {["Dec 2024", "Jan 2025", "Feb 2025", "Mar 2025", "Apr 2025", "Select Year +"].map(date => (
+                     <button
+                       key={date}
+                       type="button"
+                       onClick={() => setFormData({...formData, possessionBy: date})}
+                       className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
+                         formData.possessionBy === date
+                           ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                           : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                       }`}
+                     >
+                       {date}
+                     </button>
+                   ))}
+                 </div>
+               </div>
+             )}
         </div>
         </>
       )}
@@ -1165,11 +1441,194 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
            )}
         </div>
       </div>
+
+      <div className="pt-4 border-t border-gray-100">
+        <h3 className="text-lg font-bold text-[#000929] mb-4">Floor Plan</h3>
+        <div className="flex items-center gap-4">
+           <label className="cursor-pointer bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l5.414 5.414a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" />
+             </svg>
+             {floorPlan || existingFloorPlan ? "Change Floor Plan" : "Add Floor Plan"}
+             <input
+               type="file"
+               accept="image/*"
+               onChange={e => {
+                 if (e.target.files && e.target.files[0]) {
+                   setFloorPlan(e.target.files[0]);
+                 }
+               }}
+               className="hidden"
+             />
+           </label>
+           {(floorPlan || existingFloorPlan) && (
+              <span className="text-sm text-gray-600 truncate max-w-xs">
+                {floorPlan ? floorPlan.name : "Existing floor plan selected"}
+              </span>
+           )}
+        </div>
+      </div>
     </div>
   );
 
   const renderStep5 = () => (
     <div className="space-y-8 animate-fadeIn">
+      {/* Ownership Section */}
+      <div>
+        <label className="block text-lg font-bold text-[#000929] mb-4">Ownership</label>
+        <div className="flex flex-wrap gap-3">
+          {["Freehold", "Leasehold", "Co-operative society", "Power of Attorney"].map(type => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setFormData({...formData, ownership: type})}
+              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                formData.ownership === type
+                  ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                  : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-lg font-bold text-[#000929] mb-4">Additional Features</label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+           {/* Facing */}
+           <div>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Facing</label>
+             <select
+               className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
+               value={formData.facing}
+               onChange={e => setFormData({...formData, facing: e.target.value})}
+             >
+               <option value="">Select Facing</option>
+               {["East", "West", "North", "South", "North-East", "North-West", "South-East", "South-West"].map(f => (
+                 <option key={f} value={f}>{f}</option>
+               ))}
+             </select>
+           </div>
+           
+           {/* Overlooking */}
+           <div>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Overlooking</label>
+             <div className="flex flex-wrap gap-2">
+               {["Pool", "Park", "Main Road", "Club"].map(opt => {
+                 let Icon = Trees;
+                 if (opt === "Pool") Icon = Waves;
+                 if (opt === "Main Road") Icon = Car;
+                 if (opt === "Club") Icon = Coffee;
+                 return (
+                 <button
+                   key={opt}
+                   type="button"
+                   onClick={() => {
+                     const current = formData.overlooking || [];
+                     if (current.includes(opt)) {
+                       setFormData({...formData, overlooking: current.filter(o => o !== opt)});
+                     } else {
+                       setFormData({...formData, overlooking: [...current, opt]});
+                     }
+                   }}
+                   className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all flex items-center gap-1.5 ${
+                     (formData.overlooking || []).includes(opt)
+                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                   }`}
+                 >
+                   <Icon className="w-3.5 h-3.5" />
+                   {opt}
+                 </button>
+               )})}
+             </div>
+           </div>
+
+           {/* Water Source */}
+           <div>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Water Source</label>
+             <div className="flex flex-wrap gap-2">
+               {["Municipal corporation", "Borewell/Tank", "24*7 Water"].map(opt => (
+                 <button
+                   key={opt}
+                   type="button"
+                   onClick={() => {
+                     const current = formData.waterSource || [];
+                     if (current.includes(opt)) {
+                       setFormData({...formData, waterSource: current.filter(w => w !== opt)});
+                     } else {
+                       setFormData({...formData, waterSource: [...current, opt]});
+                     }
+                   }}
+                   className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all flex items-center gap-1.5 ${
+                     (formData.waterSource || []).includes(opt)
+                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                   }`}
+                 >
+                   <Droplets className="w-3.5 h-3.5" />
+                   {opt}
+                 </button>
+               ))}
+             </div>
+           </div>
+
+           {/* Flooring */}
+           <div>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Flooring</label>
+             <select
+               className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
+               value={formData.flooring}
+               onChange={e => setFormData({...formData, flooring: e.target.value})}
+             >
+               <option value="">Select Flooring</option>
+               {["Vitrified", "Marble", "Wooden", "Ceramic", "Mosaic", "Granite"].map(f => (
+                 <option key={f} value={f}>{f}</option>
+               ))}
+             </select>
+           </div>
+
+           {/* Power Backup */}
+           <div>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Power Backup</label>
+             <select
+               className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
+               value={formData.powerBackup}
+               onChange={e => setFormData({...formData, powerBackup: e.target.value})}
+             >
+               <option value="">Select Power Backup</option>
+               {["None", "Partial", "Full"].map(p => (
+                 <option key={p} value={p}>{p}</option>
+               ))}
+             </select>
+           </div>
+
+           {/* Width of Facing Road */}
+           <div>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Width of facing road</label>
+             <div className="flex gap-2">
+               <input
+                 type="text"
+                 className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+                 value={formData.facingRoadWidth}
+                 onChange={e => setFormData({...formData, facingRoadWidth: e.target.value})}
+                 placeholder="Width"
+               />
+               <select
+                 className="w-24 p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
+                 value={formData.facingRoadUnit}
+                 onChange={e => setFormData({...formData, facingRoadUnit: e.target.value})}
+               >
+                 <option value="Meter">Meter</option>
+                 <option value="Feet">Feet</option>
+               </select>
+             </div>
+           </div>
+        </div>
+      </div>
+
       <div>
         <label className="block text-lg font-bold text-[#000929] mb-4">Amenities & Features</label>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -1231,9 +1690,29 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           </div>
         )}
       </div>
+      {/* Unique Description */}
+      <div>
+        <label className="block text-lg font-bold text-[#000929] mb-4">What makes your property unique</label>
+        <p className="text-sm text-gray-500 mb-2">Share the unique features of your property to attract buyers.</p>
+        <textarea
+          className="w-full p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 min-h-[150px]"
+          placeholder="Describe your property..."
+          value={formData.uniqueDescription}
+          onChange={e => {
+            if (e.target.value.length <= 5000) {
+              setFormData({...formData, uniqueDescription: e.target.value});
+            }
+          }}
+        />
+        <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <span>Min 30 characters</span>
+          <span>{formData.uniqueDescription?.length || 0}/5000</span>
+        </div>
+      </div>
+
       <div>
         <h3 className="text-lg font-bold text-[#000929] mb-4">Pricing Details</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
            <div>
              <label className="block text-sm mb-2 text-gray-600 font-medium">Expected Price</label>
              <div className="relative">
@@ -1249,7 +1728,52 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
              </div>
            </div>
            <div>
-             <label className="block text-sm mb-2 text-gray-600 font-medium">Price per</label>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Price per sq.ft.</label>
+             <div className="relative">
+               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
+               <input
+                 type="number"
+                 className="w-full pl-8 p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+                 value={formData.pricePerSqFt}
+                 onChange={e => setFormData({...formData, pricePerSqFt: e.target.value})}
+                 placeholder="Enter amount"
+               />
+             </div>
+           </div>
+        </div>
+        
+        <div className="flex flex-wrap gap-4 mb-6">
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={formData.allInclusivePrice}
+              onChange={e => setFormData({...formData, allInclusivePrice: e.target.checked})}
+              className="w-4 h-4 rounded accent-[#0085FF]"
+            />
+            <span className="text-sm text-gray-700">All inclusive price</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={formData.taxExcluded}
+              onChange={e => setFormData({...formData, taxExcluded: e.target.checked})}
+              className="w-4 h-4 rounded accent-[#0085FF]"
+            />
+            <span className="text-sm text-gray-700">Tax and Govt. charges excluded</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={formData.priceNegotiable}
+              onChange={e => setFormData({...formData, priceNegotiable: e.target.checked})}
+              className="w-4 h-4 rounded accent-[#0085FF]"
+            />
+            <span className="text-sm text-gray-700">Price Negotiable</span>
+          </label>
+        </div>
+
+        <div className="mb-6">
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Price Unit (if applicable)</label>
              <select
                className="w-full p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
                value={formData.priceUnit}
@@ -1277,7 +1801,6 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
               <option value="per_perch">Perch</option>
             </select>
            </div>
-        </div>
       </div>
       
       <div>
@@ -1438,6 +1961,26 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           }
         }
       }
+      
+      // Upload floor plan if selected
+      let finalFloorPlanUrl = existingFloorPlan;
+      if (floorPlan) {
+        const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}-${floorPlan.name}`;
+        const storageRef = ref(storage, `property_floor_plans/${unique}`);
+        try {
+          const snapshot = await uploadBytes(storageRef, floorPlan);
+          finalFloorPlanUrl = await getDownloadURL(snapshot.ref);
+        } catch {
+          try {
+            await signInAnonymously(auth);
+            const snapshot2 = await uploadBytes(storageRef, floorPlan);
+            finalFloorPlanUrl = await getDownloadURL(snapshot2.ref);
+          } catch {
+            finalFloorPlanUrl = existingFloorPlan ?? null;
+          }
+        }
+      }
+
       const validUrls = allImages;
 
       // Allow property creation even if no images uploaded (use placeholder)
@@ -1453,6 +1996,12 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         lng: formData.lng ?? null,
         price: Number(formData.price),
         priceUnit: formData.priceUnit,
+        ownership: formData.ownership,
+        pricePerSqFt: formData.pricePerSqFt ? Number(formData.pricePerSqFt) : null,
+        allInclusivePrice: formData.allInclusivePrice,
+        taxExcluded: formData.taxExcluded,
+        priceNegotiable: formData.priceNegotiable,
+        uniqueDescription: formData.uniqueDescription,
         bedrooms: Number(formData.bedrooms),
         bathrooms: Number(formData.bathrooms),
         area: formData.area,
@@ -1465,8 +2014,25 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         type: formData.type,
         propertyType: formData.propertyType,
         propertyCategory: formData.propertyCategory,
+        balconies: formData.balconies,
+        builtUpArea: formData.builtUpArea,
+        superBuiltUpArea: formData.superBuiltUpArea,
+        otherRooms: formData.otherRooms,
+        coveredParking: formData.coveredParking,
+        openParking: formData.openParking,
+        availabilityStatus: formData.availabilityStatus,
+        ageOfProperty: formData.ageOfProperty,
+        facing: formData.facing,
+        overlooking: formData.overlooking,
+        waterSource: formData.waterSource,
+        flooring: formData.flooring,
+        powerBackup: formData.powerBackup,
+        facingRoadWidth: formData.facingRoadWidth,
+        facingRoadUnit: formData.facingRoadUnit,
+        possessionBy: formData.possessionBy,
         images: validUrls,
         videoUrl: finalVideoUrl || null,
+        floorPlan: finalFloorPlanUrl || null,
         sellerId,
         status: "active" as const
       };
@@ -1509,6 +2075,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         setExistingImages([]);
         setVideo(null);
         setExistingVideo(null);
+        setFloorPlan(null);
+        setExistingFloorPlan(null);
       }
 
     } catch (error) {

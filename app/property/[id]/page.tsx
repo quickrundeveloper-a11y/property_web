@@ -27,7 +27,8 @@ import {
   ShieldCheck,
   X,
   ImageIcon,
-  Video
+  Video,
+  FileText
 } from "lucide-react";
 
 interface Property {
@@ -50,6 +51,7 @@ interface Property {
   images?: string[];
   description?: string;
   videoUrl?: string;
+  floorPlan?: string;
   type?: string;
   developer?: string;
   project?: string;
@@ -278,7 +280,8 @@ export default function PropertyDetails() {
   const images = property?.images && property.images.length > 0 ? property.images : (property?.image ? [property.image] : []);
   const mediaItems = [
     ...images.map(url => ({ type: 'image' as const, url })),
-    ...(property?.videoUrl ? [{ type: 'video' as const, url: property.videoUrl }] : [])
+    ...(property?.videoUrl ? [{ type: 'video' as const, url: property.videoUrl }] : []),
+    ...(property?.floorPlan ? [{ type: 'floorPlan' as const, url: property.floorPlan }] : [])
   ];
 
   const displayedIndex = mediaItems.length > 0
@@ -417,7 +420,7 @@ export default function PropertyDetails() {
                     src={mediaItems[displayedIndex]?.url || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6"}
                     alt={property.title}
                     fill
-                    className="object-cover transition-transform duration-700 cursor-pointer"
+                    className={`${mediaItems[displayedIndex]?.type === 'floorPlan' ? "object-contain bg-white" : "object-cover"} transition-transform duration-700 cursor-pointer`}
                     onClick={() => setShowAllPhotos(true)}
                   />
                 )}
@@ -458,6 +461,10 @@ export default function PropertyDetails() {
                         {item.type === 'video' ? (
                           <div className="w-full h-full flex items-center justify-center bg-slate-900 text-white">
                             <Video className="w-8 h-8" />
+                          </div>
+                        ) : item.type === 'floorPlan' ? (
+                          <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-600">
+                            <FileText className="w-8 h-8" />
                           </div>
                         ) : (
                           <Image
@@ -523,12 +530,39 @@ export default function PropertyDetails() {
             </div>
 
             {/* Description */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">About this property</h2>
-              <p className="text-slate-600 leading-relaxed">
-                {property.description || `${property.title} located in ${property.location}. This property features modern amenities and spacious living areas suitable for families. It offers a perfect blend of comfort and luxury.`}
-              </p>
-            </div>
+            {property.description && (
+              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+                <h2 className="text-xl font-bold text-slate-900 mb-4">About this property</h2>
+                <p className="text-slate-600 leading-relaxed">
+                  {property.description}
+                </p>
+              </div>
+            )}
+
+            {/* Unique Description */}
+            {property.uniqueDescription && (
+              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+                <h2 className="text-xl font-bold text-slate-900 mb-4">Unique Description</h2>
+                <p className="text-slate-600 leading-relaxed whitespace-pre-line">
+                  {property.uniqueDescription}
+                </p>
+              </div>
+            )}
+
+            {/* Floor Plan */}
+            {property.floorPlan && (
+              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+                <h2 className="text-xl font-bold text-slate-900 mb-6">Floor Plan</h2>
+                <div className="relative aspect-[4/3] w-full md:w-2/3 mx-auto rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                   <Image 
+                     src={property.floorPlan} 
+                     alt="Floor Plan" 
+                     fill 
+                     className="object-contain"
+                   />
+                </div>
+              </div>
+            )}
 
             {/* Property Details Grid */}
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
@@ -559,6 +593,12 @@ export default function PropertyDetails() {
                          <span className="font-medium text-slate-900">{property.status}</span>
                       </div>
                     )}
+                    {property.ownershipType && (
+                      <div className="flex items-center justify-between border-b border-slate-50 pb-2">
+                         <span className="flex items-center text-slate-500"><ShieldCheck className="w-4 h-4 mr-2"/> Ownership</span>
+                         <span className="font-medium text-slate-900">{property.ownershipType}</span>
+                      </div>
+                    )}
                  </div>
                  <div className="space-y-4">
                     {property.furnished && (
@@ -582,19 +622,21 @@ export default function PropertyDetails() {
             </div>
 
             {/* Features */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-              <h2 className="text-xl font-bold text-slate-900 mb-6">Amenities & Features</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {(property.features || ["Modular Kitchen", "Marble Flooring", "Balcony", "Parking Space"]).map((feature, index) => (
-                  <div key={index} className="flex items-center p-3 rounded-xl bg-slate-50 text-slate-700 font-medium">
-                    <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mr-3 text-green-600 flex-shrink-0">
-                      <CheckCircle2 className="w-4 h-4" />
+            {property.features && property.features.length > 0 && (
+              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+                <h2 className="text-xl font-bold text-slate-900 mb-6">Amenities & Features</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {property.features.map((feature, index) => (
+                    <div key={index} className="flex items-center p-3 rounded-xl bg-slate-50 text-slate-700 font-medium">
+                      <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mr-3 text-green-600 flex-shrink-0">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                      {feature}
                     </div>
-                    {feature}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right Column - Contact Card */}
