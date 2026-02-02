@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { MapPin, Loader2, Building2, Home, Users, Briefcase, Store, Map, Warehouse, Factory, Hotel, MoreHorizontal, Building, Armchair, LandPlot, Archive, Coffee, ArrowUp, Sprout, BedDouble, Bath, Car, Sofa, Ruler, Key, Compass, Waves, Trees, Droplets, Layers, Zap, Shield, Fan } from "lucide-react";
+import { MapPin, Loader2, Building2, Home, Users, Briefcase, Store, Map, Warehouse, Factory, MoreHorizontal, Building, Armchair, LandPlot, Archive, Coffee, ArrowUp, Sprout, Car, Sofa, Trees, Waves, Droplets } from "lucide-react";
 import { db, storage, auth } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -64,7 +64,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
     OwnerName: "",
     phone: "",
     email: "",
-    type: defaultType,
+    type: defaultType as "rent" | "sell" | "pg",
     propertyType: "residential",
     propertyCategory: "Flat/Apartment",
     totalFloors: "" as string | number,
@@ -80,8 +80,6 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
     anyConstruction: "" as "Yes" | "No" | "",
     possessionBy: "" as string,
     balconies: "",
-    builtUpArea: "",
-    superBuiltUpArea: "",
     otherRooms: [] as string[],
     coveredParking: "",
     openParking: "",
@@ -100,6 +98,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
     taxExcluded: false,
     priceNegotiable: false,
     uniqueDescription: "",
+    availableFrom: "",
+    preferredTenants: [] as string[],
+    userType: "Owner" as "Owner" | "Agent" | "Builder",
   });
 
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -109,8 +110,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
       setFormData({
         title: initialData.title || "",
         location: initialData.location || "",
-        lat: initialData.lat || null,
-        lng: initialData.lng || null,
+        lat: initialData.lat ?? null,
+        lng: initialData.lng ?? null,
         price: initialData.price ? String(initialData.price) : "",
         bedrooms: initialData.bedrooms ? String(initialData.bedrooms) : "",
         bathrooms: initialData.bathrooms ? String(initialData.bathrooms) : "",
@@ -122,17 +123,22 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         OwnerName: initialData.OwnerName || "",
         phone: initialData.phone || "",
         email: initialData.email || "",
-        type: initialData.type || defaultType,
+        type: (initialData.type as "rent" | "sell" | "pg") || defaultType,
         propertyType: initialData.propertyType || "residential",
         propertyCategory: initialData.propertyCategory || "Flat/Apartment",
         totalFloors: initialData.totalFloors || "",
         floorNumber: initialData.floorNumber || "",
         furnishingStatus: initialData.furnishingStatus || "",
-        builderFloorType: "Single Floor",
-        plotArea: initialData.area || "",
+        builderFloorType: (initialData.builderFloorType as "Single Floor" | "Duplex" | "Triplex") || "Single Floor",
+        plotArea: initialData.plotArea || "",
+        plotLength: initialData.plotLength || "",
+        plotBreadth: initialData.plotBreadth || "",
+        floorsAllowed: initialData.floorsAllowed || "",
+        boundaryWall: (initialData.boundaryWall as "Yes" | "No" | "") || "",
+        openSides: initialData.openSides || "",
+        anyConstruction: (initialData.anyConstruction as "Yes" | "No" | "") || "",
+        possessionBy: initialData.possessionBy || "",
         balconies: initialData.balconies ? String(initialData.balconies) : "",
-        builtUpArea: initialData.builtUpArea ? String(initialData.builtUpArea) : "",
-        superBuiltUpArea: initialData.superBuiltUpArea ? String(initialData.superBuiltUpArea) : "",
         otherRooms: initialData.otherRooms || [],
         coveredParking: initialData.coveredParking ? String(initialData.coveredParking) : "",
         openParking: initialData.openParking ? String(initialData.openParking) : "",
@@ -145,13 +151,15 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         powerBackup: initialData.powerBackup || "",
         facingRoadWidth: initialData.facingRoadWidth ? String(initialData.facingRoadWidth) : "",
         facingRoadUnit: initialData.facingRoadUnit || "Meter",
-        possessionBy: initialData.possessionBy || "",
         ownership: initialData.ownership || "",
         pricePerSqFt: initialData.pricePerSqFt ? String(initialData.pricePerSqFt) : "",
         allInclusivePrice: initialData.allInclusivePrice || false,
         taxExcluded: initialData.taxExcluded || false,
         priceNegotiable: initialData.priceNegotiable || false,
         uniqueDescription: initialData.uniqueDescription || "",
+        availableFrom: initialData.availableFrom || "",
+        preferredTenants: initialData.preferredTenants || [],
+        userType: initialData.userType || "Owner",
       });
       if (initialData.images) {
         setExistingImages(initialData.images);
@@ -590,6 +598,27 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
   const renderStep1 = () => (
     <div className="space-y-8 animate-fadeIn">
+      {/* User Type Section */}
+      <div>
+        <h3 className="text-lg font-bold text-[#000929] mb-4">You are:</h3>
+        <div className="flex flex-wrap gap-4 mb-6">
+          {["Owner", "Agent", "Builder"].map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setFormData({ ...formData, userType: type as "Owner" | "Agent" | "Builder" })}
+              className={`px-8 py-3 rounded-full text-base font-medium transition-all min-w-[140px] border ${
+                formData.userType === type
+                  ? "bg-blue-50 text-[#0085FF] border-[#0085FF]"
+                  : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Property Type Section (Moved to Top) */}
       <div>
         <h3 className="text-sm font-medium text-gray-500 mb-3">Property Type</h3>
@@ -1037,6 +1066,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
          </div>
         </div>
 
+
         <div className="mb-6">
              <label className="block text-sm mb-2 text-gray-600 font-medium">Furnishing Status</label>
              <div className="flex gap-3">
@@ -1084,39 +1114,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                </select>
              </div>
            </div>
-           
-           <div>
-             <label className="block text-sm mb-2 text-gray-600 font-medium">Built-up Area</label>
-             <div className="flex gap-2">
-               <input
-                 type="text"
-                 className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
-                 value={formData.builtUpArea}
-                 onChange={e => setFormData({...formData, builtUpArea: e.target.value})}
-                 placeholder="Size"
-               />
-               <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 text-sm">
-                 {formData.units}
-               </div>
-             </div>
-           </div>
-
-           <div>
-             <label className="block text-sm mb-2 text-gray-600 font-medium">Super Built-up Area</label>
-             <div className="flex gap-2">
-               <input
-                 type="text"
-                 className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
-                 value={formData.superBuiltUpArea}
-                 onChange={e => setFormData({...formData, superBuiltUpArea: e.target.value})}
-                 placeholder="Size"
-               />
-               <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 text-sm">
-                 {formData.units}
-               </div>
-             </div>
-           </div>
-        </div>
+       </div>
         
         {formData.propertyType === "residential" && (
           <div className="mb-6">
@@ -1241,7 +1239,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                      onChange={e => setFormData({...formData, floorNumber: e.target.value})}
                    >
                      <option value="">Floor No.</option>
-                     {Array.from({length: parseInt(formData.totalFloors || "50")}, (_, i) => i + 1).map(num => (
+                     {Array.from({length: parseInt(String(formData.totalFloors || "50"))}, (_, i) => i + 1).map(num => (
                        <option key={num} value={num}>{num}</option>
                      ))}
                    </select>
@@ -1249,6 +1247,47 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                </div>
             </div>
         </div>
+
+        {formData.type === 'rent' && (
+          <>
+            <div className="mb-6">
+              <label className="block text-sm mb-2 text-gray-600 font-medium">Available from</label>
+              <input
+                type="date"
+                className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
+                value={formData.availableFrom}
+                onChange={e => setFormData({...formData, availableFrom: e.target.value})}
+              />
+            </div>
+
+            <div className="mb-6">
+               <label className="block text-sm mb-2 text-gray-600 font-medium">Willing to rent out to</label>
+               <div className="flex flex-wrap gap-3">
+                 {["Family", "Single men", "Single women"].map(tenant => (
+                   <button
+                     key={tenant}
+                     type="button"
+                     onClick={() => {
+                       const current = formData.preferredTenants || [];
+                       if (current.includes(tenant)) {
+                          setFormData({...formData, preferredTenants: current.filter(t => t !== tenant)});
+                       } else {
+                          setFormData({...formData, preferredTenants: [...current, tenant]});
+                       }
+                     }}
+                     className={`px-4 py-2 rounded-full border text-sm font-medium transition-all flex items-center gap-2 ${
+                       (formData.preferredTenants || []).includes(tenant)
+                         ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                         : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                     }`}
+                   >
+                     <span className="text-lg">+</span> {tenant}
+                   </button>
+                 ))}
+               </div>
+            </div>
+          </>
+        )}
 
         <div className="mb-6">
              <label className="block text-sm mb-2 text-gray-600 font-medium">Availability Status</label>
@@ -1989,7 +2028,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
       }
 
       // Add to Firestore with standardized fields only
-      const payload = {
+      const payload: any = {
         title: formData.title,
         location: formData.location,
         lat: formData.lat ?? null,
@@ -2015,8 +2054,6 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         propertyType: formData.propertyType,
         propertyCategory: formData.propertyCategory,
         balconies: formData.balconies,
-        builtUpArea: formData.builtUpArea,
-        superBuiltUpArea: formData.superBuiltUpArea,
         otherRooms: formData.otherRooms,
         coveredParking: formData.coveredParking,
         openParking: formData.openParking,
@@ -2030,6 +2067,16 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         facingRoadWidth: formData.facingRoadWidth,
         facingRoadUnit: formData.facingRoadUnit,
         possessionBy: formData.possessionBy,
+        furnishingStatus: formData.furnishingStatus,
+        totalFloors: formData.totalFloors ? Number(formData.totalFloors) : null,
+        floorNumber: formData.floorNumber ? Number(formData.floorNumber) : null,
+        boundaryWall: formData.boundaryWall,
+        openSides: formData.openSides,
+        anyConstruction: formData.anyConstruction,
+        plotArea: formData.plotArea ? Number(formData.plotArea) : null,
+        plotLength: formData.plotLength ? Number(formData.plotLength) : null,
+        plotBreadth: formData.plotBreadth ? Number(formData.plotBreadth) : null,
+        floorsAllowed: formData.floorsAllowed ? Number(formData.floorsAllowed) : null,
         images: validUrls,
         videoUrl: finalVideoUrl || null,
         floorPlan: finalFloorPlanUrl || null,
@@ -2069,7 +2116,41 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           email: "",
           type: defaultType,
           propertyType: "residential",
-          propertyCategory: "Flat/Apartment"
+          propertyCategory: "Flat/Apartment",
+          totalFloors: "",
+          floorNumber: "",
+          furnishingStatus: "",
+          builderFloorType: "Single Floor",
+          plotArea: "",
+          plotLength: "",
+          plotBreadth: "",
+          floorsAllowed: "",
+          boundaryWall: "",
+          openSides: "",
+          anyConstruction: "",
+          possessionBy: "",
+          balconies: "",
+          otherRooms: [],
+          coveredParking: "",
+          openParking: "",
+          availabilityStatus: "",
+          ageOfProperty: "",
+          facing: "",
+          overlooking: [],
+          waterSource: [],
+          flooring: "",
+          powerBackup: "",
+          facingRoadWidth: "",
+          facingRoadUnit: "Meter",
+          ownership: "",
+          pricePerSqFt: "",
+          allInclusivePrice: false,
+          taxExcluded: false,
+          priceNegotiable: false,
+          uniqueDescription: "",
+          availableFrom: "",
+          preferredTenants: [],
+          userType: "Owner",
         });
         setImages([]);
         setExistingImages([]);

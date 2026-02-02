@@ -41,8 +41,6 @@ export interface Property {
   furnishingStatus?: string;
   features?: string[];
   balconies?: string | number;
-  builtUpArea?: string | number;
-  superBuiltUpArea?: string | number;
   otherRooms?: string[];
   coveredParking?: string | number;
   openParking?: string | number;
@@ -63,4 +61,26 @@ export interface Property {
   priceNegotiable?: boolean;
   uniqueDescription?: string;
   floorPlan?: string;
+  viewCount?: number;
+  developer?: string;
+  amenities?: string[];
+  lat?: number | null;
+  lng?: number | null;
+  plotLength?: string | number;
+  plotBreadth?: string | number;
+  floorsAllowed?: string | number;
+  boundaryWall?: string;
+  openSides?: string | number;
+  anyConstruction?: string;
+  builderFloorType?: "Single Floor" | "Duplex" | "Triplex";
+  plotArea?: string | number;
+  OwnerName?: string;
+  size?: string | number;
+  project?: string;
+  ageOfConstruction?: string;
+  floor?: string;
+  furnished?: string;
+  availableFrom?: string;
+  preferredTenants?: string[];
+  userType?: "Owner" | "Agent" | "Builder";
 }
