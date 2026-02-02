@@ -97,7 +97,7 @@ export default function UpdatePhoneNumbers() {
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {properties.map((property, index) => (
                     <div key={property.id} className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex justify-between items-start">
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-0">
                         <div>
                           <h4 className="font-medium text-gray-800">
                             {property.title || property.name || `Property ${index + 1}`}
@@ -109,7 +109,7 @@ export default function UpdatePhoneNumbers() {
                             Current phone: {property.phone || property.contact || "None"}
                           </p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right">
                           <p className="text-sm font-medium text-green-600">
                             Will set: {phoneNumbers[index] || phoneNumbers[phoneNumbers.length - 1]}
                           </p>
@@ -121,7 +121,7 @@ export default function UpdatePhoneNumbers() {
                 </div>
               </div>
 
-              <div className="flex space-x-4">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => router.push("/home")}
                   className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"

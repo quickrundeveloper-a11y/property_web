@@ -24,6 +24,8 @@ const PROPERTY_TYPES = [
 
 const BUDGET_RANGES = ["5 Lac", "10 Lac", "20 Lac", "30 Lac", "40 Lac", "50 Lac", "60 Lac", "70 Lac", "80 Lac", "90 Lac", "1 Cr", "2 Cr", "5 Cr", "10 Cr"];
 const BEDROOM_OPTIONS = ["1 RK/1 BHK", "2 BHK", "3 BHK", "4 BHK", "4+ BHK"];
+const BATHROOM_OPTIONS = ["1", "2", "3", "4+"];
+const BALCONY_OPTIONS = ["0", "1", "2", "3+"];
 const CONSTRUCTION_STATUS = ["New Launch", "Under Construction", "Ready to Move"];
 const POSTED_BY = ["Owner", "Dealer", "Builder"];
 
@@ -37,6 +39,8 @@ function HomeContentInner() {
     minBudget: "",
     maxBudget: "",
     bedroom: [] as string[],
+    bathroom: [] as string[],
+    balcony: [] as string[],
     constructionStatus: [] as string[],
     postedBy: [] as string[]
   });
@@ -45,6 +49,8 @@ function HomeContentInner() {
     minBudget: "",
     maxBudget: "",
     bedroom: [] as string[],
+    bathroom: [] as string[],
+    balcony: [] as string[],
     constructionStatus: [] as string[],
     postedBy: [] as string[]
   });
@@ -94,6 +100,8 @@ function HomeContentInner() {
       minBudget: "",
       maxBudget: "",
       bedroom: [],
+      bathroom: [],
+      balcony: [],
       constructionStatus: [],
       postedBy: []
     });
@@ -279,7 +287,27 @@ function HomeContentInner() {
       per_chataks: '/chataks',
       per_perch: '/perch'
     };
-    return map[unit] || '/month';
+
+    const rawType = String(item?.type || item?.propertyType || '').toLowerCase();
+    const cat = String(item?.propertyCategory || item?.category || '').toLowerCase();
+    
+    // Check for explicit sale indicators first
+    const isSale = rawType.includes('sell') || rawType.includes('sale') || rawType.includes('buy');
+    
+    // Only consider it rent if it's NOT explicitly sale, AND has rent indicators
+    const isRent = !isSale && (rawType === 'rent' || rawType === 'pg' || unit === 'per_month' || unit === 'per_year');
+    
+    const isPlot = cat.includes('land') || cat.includes('plot') || rawType.includes('plot');
+
+    if (isRent) {
+      return map[unit] || '/month';
+    }
+
+    if (isPlot) {
+      return map[unit] || '';
+    }
+
+    return '';
   };
 
   const isPlotType = (item: Property) => {
@@ -296,8 +324,10 @@ function HomeContentInner() {
     
     const isPlot = isPlotType(item);
     
-    const isRent = unit === 'per_month' || unit === 'per_year' || rawType.includes('rent');
-    const isSale = isPlot || ['per_sqft', 'per_sqm', 'per_acre', 'per_bigha', 'per_katha', 'per_gaj'].includes(unit) || rawType.includes('buy') || rawType.includes('sale') || rawType.includes('sell');
+    const isExplicitSale = rawType.includes('buy') || rawType.includes('sale') || rawType.includes('sell');
+    
+    const isRent = !isExplicitSale && (unit === 'per_month' || unit === 'per_year' || rawType.includes('rent'));
+    const isSale = isExplicitSale || isPlot || ['per_sqft', 'per_sqm', 'per_acre', 'per_bigha', 'per_katha', 'per_gaj'].includes(unit);
 
     if (activeTab === 'Rent') return isRent;
     if (activeTab === 'Sell') return isSale;
@@ -424,6 +454,31 @@ function HomeContentInner() {
       if (!matchesBedroom) return false;
     }
     
+    if (appliedFilters.bathroom.length > 0) {
+      const baths = Number(property.bathrooms || property.baths || 0);
+      const matchesBathroom = appliedFilters.bathroom.some(b => {
+        if (b === "1") return baths === 1;
+        if (b === "2") return baths === 2;
+        if (b === "3") return baths === 3;
+        if (b === "4+") return baths >= 4;
+        return false;
+      });
+      if (!matchesBathroom) return false;
+    }
+    
+    if (appliedFilters.balcony.length > 0) {
+      const balcRaw = property.balconies || 0;
+      const balc = typeof balcRaw === 'string' ? parseInt(balcRaw.replace(/[^\d]/g, '')) : Number(balcRaw);
+      const matchesBalcony = appliedFilters.balcony.some(b => {
+        if (b === "0") return balc === 0;
+        if (b === "1") return balc === 1;
+        if (b === "2") return balc === 2;
+        if (b === "3+") return balc >= 3;
+        return false;
+      });
+      if (!matchesBalcony) return false;
+    }
+    
     if (appliedFilters.constructionStatus.length > 0) {
       const status = (property.constructionStatus || property.status || '').toLowerCase();
       const matchesStatus = appliedFilters.constructionStatus.some(s => status.includes(s.toLowerCase()));
@@ -469,12 +524,12 @@ function HomeContentInner() {
               </div>
 
               {/* Action Tabs & Button */}
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-8 lg:gap-12">
+              <div className="flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-6 lg:gap-12 w-full lg:w-auto">
                 {/* Tabs Container */}
-                <div className="bg-white rounded-lg p-1 flex items-center shadow-sm">
+                <div className="bg-white rounded-lg p-1 flex flex-wrap justify-center items-center shadow-sm w-full lg:w-auto">
                   <button
                     onClick={() => scrollToFilter("Rent")}
-                    className={`px-6 py-2.5 rounded-md text-sm lg:text-base font-semibold transition-all ${
+                    className={`flex-1 lg:flex-none px-4 lg:px-6 py-2.5 rounded-md text-sm lg:text-base font-semibold transition-all whitespace-nowrap ${
                       activeTab === "Rent"
                         ? "text-[#0085FF] bg-blue-50"
                         : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -484,7 +539,7 @@ function HomeContentInner() {
                   </button>
                   <button
                     onClick={() => scrollToFilter("Buy")}
-                    className={`px-6 py-2.5 rounded-md text-sm lg:text-base font-semibold transition-all ${
+                    className={`flex-1 lg:flex-none px-4 lg:px-6 py-2.5 rounded-md text-sm lg:text-base font-semibold transition-all whitespace-nowrap ${
                       activeTab === "Buy"
                         ? "text-[#0085FF] bg-blue-50"
                         : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -494,7 +549,7 @@ function HomeContentInner() {
                   </button>
                   <button
                     onClick={() => scrollToFilter("Sell")}
-                    className={`px-6 py-2.5 rounded-md text-sm lg:text-base font-semibold transition-all ${
+                    className={`flex-1 lg:flex-none px-4 lg:px-6 py-2.5 rounded-md text-sm lg:text-base font-semibold transition-all whitespace-nowrap ${
                       activeTab === "Sell"
                         ? "text-[#0085FF] bg-blue-50"
                         : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -505,7 +560,7 @@ function HomeContentInner() {
                 </div>
 
                 {/* Search Component */}
-                <div className="relative w-full md:w-80">
+                <div className="relative w-full lg:w-80">
                   <div className="bg-[#E0EAFF] rounded-xl flex items-center px-4 py-2.5 transition-all relative z-50">
                     <SearchIcon className="w-5 h-5 text-[#0066FF] mr-3" />
                     <input
@@ -520,7 +575,7 @@ function HomeContentInner() {
 
                   {/* Filter Overlay */}
                   {showFilters && (
-                    <div className="absolute top-[120%] left-0 w-[90vw] md:w-[800px] bg-white rounded-xl shadow-2xl border border-gray-100 z-[100] p-6 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="absolute top-[120%] left-1/2 -translate-x-1/2 lg:left-0 lg:translate-x-0 w-[90vw] md:w-[800px] bg-white rounded-xl shadow-2xl border border-gray-100 z-[100] p-6 animate-in fade-in zoom-in-95 duration-200">
                       
                       {/* Header */}
                       <div className="flex justify-between items-center mb-6">
@@ -571,6 +626,32 @@ function HomeContentInner() {
                         >
                           Bedroom
                           <ChevronDown className={`w-4 h-4 transition-transform ${activeFilterCategory === "Bedroom" ? "rotate-180" : ""}`} />
+                        </button>
+                        
+                        {/* Bathrooms */}
+                        <button 
+                          onClick={() => setActiveFilterCategory("Bathrooms")}
+                          className={`px-4 py-2 rounded-full border text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${
+                            activeFilterCategory === "Bathrooms" 
+                            ? "bg-blue-50 border-blue-200 text-[#0066FF]" 
+                            : "border-gray-200 text-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          Bathrooms
+                          <ChevronDown className={`w-4 h-4 transition-transform ${activeFilterCategory === "Bathrooms" ? "rotate-180" : ""}`} />
+                        </button>
+                        
+                        {/* Balconies */}
+                        <button 
+                          onClick={() => setActiveFilterCategory("Balconies")}
+                          className={`px-4 py-2 rounded-full border text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${
+                            activeFilterCategory === "Balconies" 
+                            ? "bg-blue-50 border-blue-200 text-[#0066FF]" 
+                            : "border-gray-200 text-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          Balconies
+                          <ChevronDown className={`w-4 h-4 transition-transform ${activeFilterCategory === "Balconies" ? "rotate-180" : ""}`} />
                         </button>
                         
                         {/* Construction Status */}
@@ -667,6 +748,48 @@ function HomeContentInner() {
                                   }`}
                                 >
                                   {tempFilters.bedroom.includes(opt) ? "✓ " : "+ "}{opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {activeFilterCategory === "Bathrooms" && (
+                          <div>
+                            <h4 className="font-semibold text-gray-900 mb-4">Number of Bathrooms</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {BATHROOM_OPTIONS.map(opt => (
+                                <button
+                                  key={opt}
+                                  onClick={() => handleFilterChange('bathroom', opt)}
+                                  className={`px-6 py-2.5 rounded-full border text-sm font-medium transition-all ${
+                                    tempFilters.bathroom.includes(opt)
+                                    ? "bg-blue-50 border-blue-200 text-[#0066FF]"
+                                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                                  }`}
+                                >
+                                  {tempFilters.bathroom.includes(opt) ? "✓ " : "+ "}{opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {activeFilterCategory === "Balconies" && (
+                          <div>
+                            <h4 className="font-semibold text-gray-900 mb-4">Number of Balconies</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {BALCONY_OPTIONS.map(opt => (
+                                <button
+                                  key={opt}
+                                  onClick={() => handleFilterChange('balcony', opt)}
+                                  className={`px-6 py-2.5 rounded-full border text-sm font-medium transition-all ${
+                                    tempFilters.balcony.includes(opt)
+                                    ? "bg-blue-50 border-blue-200 text-[#0066FF]"
+                                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                                  }`}
+                                >
+                                  {tempFilters.balcony.includes(opt) ? "✓ " : "+ "}{opt}
                                 </button>
                               ))}
                             </div>
@@ -831,8 +954,8 @@ function HomeContentInner() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Property Insurance */}
-            <div className="flex flex-col gap-4">
-              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF]">
+            <div className="flex flex-col gap-4 items-center text-center lg:items-start lg:text-left">
+              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF] mx-auto lg:mx-0">
                 <HomeIcon className="w-8 h-8 text-[#0085FF]" />
                 <div className="absolute -bottom-1 -right-1 bg-[#0085FF] p-1.5 rounded-full border-2 border-white">
                    <ShieldCheck className="w-3 h-3 text-white" />
@@ -843,8 +966,8 @@ function HomeContentInner() {
             </div>
 
             {/* Best Price */}
-            <div className="flex flex-col gap-4">
-              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF]">
+            <div className="flex flex-col gap-4 items-center text-center lg:items-start lg:text-left">
+              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF] mx-auto lg:mx-0">
                 <CircleDollarSign className="w-8 h-8 text-[#0085FF]" />
                 <div className="absolute -bottom-1 -right-1 bg-[#0085FF] p-1.5 rounded-full border-2 border-white">
                    <Percent className="w-3 h-3 text-white" />
@@ -855,8 +978,8 @@ function HomeContentInner() {
             </div>
 
             {/* Lowest Commission */}
-            <div className="flex flex-col gap-4">
-              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF]">
+            <div className="flex flex-col gap-4 items-center text-center lg:items-start lg:text-left">
+              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF] mx-auto lg:mx-0">
                 <BadgePercent className="w-8 h-8 text-[#0085FF]" />
                 <div className="absolute -bottom-1 -right-1 bg-[#0085FF] p-1.5 rounded-full border-2 border-white">
                    <DollarSign className="w-3 h-3 text-white" />
@@ -867,8 +990,8 @@ function HomeContentInner() {
             </div>
 
             {/* Overall Control */}
-            <div className="flex flex-col gap-4">
-              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF]">
+            <div className="flex flex-col gap-4 items-center text-center lg:items-start lg:text-left">
+              <div className="relative w-16 h-16 flex items-center justify-center rounded-full bg-white border-4 border-[#E6F0FF] mx-auto lg:mx-0">
                 <Scan className="w-8 h-8 text-[#0085FF]" />
                 <div className="absolute -bottom-1 -right-1 bg-[#0085FF] p-1.5 rounded-full border-2 border-white">
                    <HomeIcon className="w-3 h-3 text-white" />
@@ -889,7 +1012,7 @@ function HomeContentInner() {
         
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
           {/* Filter Tabs - Left */}
-          <div className="bg-[#E0EAFF] p-1.5 rounded-xl flex items-center gap-1">
+          <div className="bg-[#E0EAFF] p-1.5 rounded-xl flex flex-wrap justify-center items-center gap-1">
             {[
               { id: "Rent", label: "Rent" },
               { id: "Buy", label: "Buy" },
@@ -955,7 +1078,7 @@ function HomeContentInner() {
                     className="bg-white rounded-xl border border-gray-100 overflow-visible hover:shadow-xl transition-all duration-300 cursor-pointer group relative max-w-sm mx-auto w-full"
                     onClick={() => router.push(`/property/${property.id}`)}
                   >
-                    <div className="relative h-56 overflow-hidden rounded-t-xl">
+                    <div className="relative h-48 sm:h-56 overflow-hidden rounded-t-xl">
                       <Image
                         src={property.images?.[0] || property.image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"}
                         className="object-cover transform group-hover:scale-105 transition-transform duration-500"
@@ -967,7 +1090,7 @@ function HomeContentInner() {
 
                     {/* Ribbon Badge - Only show for first 3 properties */}
                     {index < 3 && (
-                      <div className="absolute top-[200px] left-[-10px] z-10">
+                      <div className="absolute top-[170px] sm:top-[200px] left-[-10px] z-10">
                         <div className="bg-[#007AFF] text-white px-4 py-2 rounded-tr-lg rounded-br-lg rounded-tl-lg text-xs font-bold flex items-center gap-1.5 shadow-lg relative">
                           <Sparkles className="w-3.5 h-3.5 text-white fill-white" />
                           <span className="tracking-wide">POPULAR</span>
@@ -979,7 +1102,7 @@ function HomeContentInner() {
                       </div>
                     )}
                     
-                    <div className="p-5 pt-8">
+                    <div className="p-5 pt-6 sm:pt-8">
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <h3 className="font-bold text-[#0066FF] text-xl">
@@ -1003,11 +1126,11 @@ function HomeContentInner() {
                         </button>
                       </div>
                       
-                      <p className="text-gray-500 text-xs mb-5 truncate border-b border-gray-100 pb-4">
+                      <p className="text-gray-500 text-xs mb-5 border-b border-gray-100 pb-4 line-clamp-2 min-h-[3rem]">
                         {property.location || property.address || "Location Address"}
                       </p>
                       
-                      <div className="flex items-center justify-between text-gray-500">
+                      <div className="flex flex-wrap gap-y-2 items-center justify-between text-gray-500">
                         {!(String(property.propertyCategory || '').toLowerCase().includes('land') || String(property.propertyCategory || '').toLowerCase().includes('plot')) && (
                           <>
                             <div className="flex items-center gap-1.5">
@@ -1132,13 +1255,13 @@ function HomeContentInner() {
             Discover ways to increase your home&apos;s value and get listed. No Spam.
           </p>
           
-          <div className="bg-white p-2 rounded-lg shadow-sm flex items-center max-w-lg mx-auto mb-8">
+          <div className="bg-white p-2 rounded-lg shadow-sm flex flex-col sm:flex-row items-center max-w-lg mx-auto mb-8 gap-2 sm:gap-0">
             <input
               type="email"
               placeholder="Enter your email address"
-              className="flex-1 px-4 py-2 bg-transparent border-none focus:outline-none text-gray-700 placeholder-gray-400"
+              className="flex-1 px-4 py-2 bg-transparent border-none focus:outline-none text-gray-700 placeholder-gray-400 w-full"
             />
-            <button className="bg-[#0066FF] hover:bg-blue-700 text-white px-8 py-3 rounded-md font-medium transition-colors whitespace-nowrap">
+            <button className="bg-[#0066FF] hover:bg-blue-700 text-white px-8 py-3 rounded-md font-medium transition-colors whitespace-nowrap w-full sm:w-auto">
               Submit
             </button>
           </div>

@@ -60,18 +60,30 @@ export default function AddPropertyPage() {
           </div>
           
           {/* Main Content */}
-          <div className="md:w-3/4">
-             <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold text-[#000929] md:hidden">Add Property</h1>
+          <div className="w-full md:w-3/4">
+             <div className="flex items-center justify-between mb-6 gap-4">
+              <div className="flex flex-col md:hidden flex-1">
+                <h1 className="text-xl font-bold text-[#000929]">Add Property</h1>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                    <div 
+                      className="bg-[#0085FF] h-1.5 rounded-full transition-all duration-300" 
+                      style={{ width: `${(currentStep / 5) * 100}%` }} // Assuming 5 steps based on form
+                    ></div>
+                  </div>
+                  <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Step {currentStep}/5</span>
+                </div>
+              </div>
+              <h1 className="text-2xl font-bold text-[#000929] hidden md:block">Add Property</h1>
               <button
                 onClick={() => router.push("/home")}
-                className="bg-white hover:bg-gray-50 text-[#005DB2] border border-[#005DB2] px-4 py-2 rounded-lg font-medium transition-colors shadow-sm ml-auto md:ml-0"
+                className="bg-white hover:bg-gray-50 text-[#005DB2] border border-[#005DB2] px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-medium transition-colors shadow-sm text-sm whitespace-nowrap"
               >
-                Back to Home
+                Exit
               </button>
             </div>
             
-            <div className="bg-white rounded-xl p-6 md:p-8 shadow-xl border border-gray-100">
+            <div className="bg-white rounded-xl p-4 md:p-8 shadow-xl border border-gray-100">
               <AddPropertyForm
                 defaultType="sell"
                 onSuccess={() => {

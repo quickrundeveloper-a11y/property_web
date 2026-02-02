@@ -53,14 +53,27 @@ export default function EditPropertyPage() {
   return (
     <div className="min-h-screen bg-[#F0F5FA] pb-12">
       <div className="bg-white border-b sticky top-0 z-10 mb-8">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
-          <button 
-            onClick={() => router.back()}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
-          </button>
-          <h1 className="text-xl font-bold text-gray-900">Edit Property</h1>
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => router.back()}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <ArrowLeft className="w-6 h-6 text-gray-600" />
+            </button>
+            <h1 className="text-xl font-bold text-gray-900">Edit Property</h1>
+          </div>
+          
+          {/* Mobile Progress Bar */}
+          <div className="md:hidden mt-3 flex items-center gap-2">
+            <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+              <div 
+                className="bg-[#0085FF] h-1.5 rounded-full transition-all duration-300" 
+                style={{ width: `${(currentStep / 5) * 100}%` }} 
+              ></div>
+            </div>
+            <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Step {currentStep}/5</span>
+          </div>
         </div>
       </div>
 

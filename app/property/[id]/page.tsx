@@ -41,6 +41,7 @@ export default function PropertyDetails() {
   const [loading, setLoading] = useState(true);
   const [showAllPhotos, setShowAllPhotos] = useState(false);
   const [similarProperties, setSimilarProperties] = useState<Property[]>([]);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   useEffect(() => {
     const fetchSimilar = async () => {
@@ -243,7 +244,7 @@ export default function PropertyDetails() {
       <div className="max-w-7xl mx-auto px-4 md:px-8">
         
         {/* Breadcrumbs */}
-        <div className="flex items-center gap-2 text-sm text-slate-500 font-medium mb-8">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 font-medium mb-8">
            <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => router.push('/home')}>Home</span>
            <ChevronRight className="w-4 h-4 text-slate-400" />
            <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => router.push('/home')}>Properties</span>
@@ -286,12 +287,10 @@ export default function PropertyDetails() {
                  <span className="bg-slate-100 text-slate-600 px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider">
                     {property.propertyCategory || "Property"}
                  </span>
-                 {property.viewCount !== undefined && (
-                    <div className="flex items-center gap-1.5 text-slate-500 text-sm px-3 py-1.5 rounded-full border border-slate-100">
-                       <Eye className="w-3 h-3" />
-                       <span className="font-medium">{property.viewCount} views</span>
-                    </div>
-                 )}
+                 <div className="flex items-center gap-1.5 text-slate-500 text-sm px-3 py-1.5 rounded-full border border-slate-100">
+                    <Eye className="w-3 h-3" />
+                    <span className="font-medium">{property.viewCount || 0} views</span>
+                 </div>
               </div>
 
               {/* Title & Location */}
@@ -424,7 +423,6 @@ export default function PropertyDetails() {
                         { label: "Water Source", value: property.waterSource?.join(", ") },
                         { label: "Power Backup", value: property.powerBackup },
                         { label: "Road Facing", value: property.facingRoadWidth ? `${property.facingRoadWidth} ${property.facingRoadUnit || ''}` : null },
-                        { label: "Price per sq.ft", value: (property.type === 'rent' || property.type === 'pg') ? null : (property.pricePerSqFt ? `₹${property.pricePerSqFt}` : null) },
                         { label: "All Inclusive Price", value: property.allInclusivePrice ? "Yes" : null },
                         { label: "Tax Excluded", value: property.taxExcluded ? "Yes" : null },
                         { label: "Negotiable", value: property.priceNegotiable ? "Yes" : null },
@@ -442,9 +440,28 @@ export default function PropertyDetails() {
               <div>
                  <h3 className="text-xl font-bold text-slate-900 mb-6 uppercase tracking-wider text-sm">About this property</h3>
                  <div className="prose prose-slate max-w-none text-slate-600">
-                    <p className="leading-relaxed whitespace-pre-wrap">
-                       {property.description || property.uniqueDescription || "No description available for this property."}
-                    </p>
+                    {(() => {
+                        const description = String(property.description || property.uniqueDescription || "No description available for this property.");
+                        const shouldTruncate = description.length > 300;
+                       
+                       return (
+                          <>
+                             <p className="leading-relaxed whitespace-pre-wrap">
+                                {shouldTruncate && !isDescriptionExpanded 
+                                   ? `${description.slice(0, 300)}...` 
+                                   : description}
+                             </p>
+                             {shouldTruncate && (
+                                <button 
+                                   onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                                   className="mt-2 text-[#0085FF] font-medium hover:underline focus:outline-none"
+                                >
+                                   {isDescriptionExpanded ? "Show less" : "Show more"}
+                                </button>
+                             )}
+                          </>
+                       );
+                    })()}
                  </div>
               </div>
 

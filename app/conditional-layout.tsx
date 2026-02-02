@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Header from './components/header';
 import Footer from './components/footer';
+import MobileNav from './components/mobile-nav';
 
 export default function ConditionalLayout({
   children,
@@ -24,10 +25,11 @@ export default function ConditionalLayout({
   return (
     <>
       <Header />
-      <main className="min-h-screen">
+      <main className="min-h-screen pb-16 lg:pb-0">
         {children}
       </main>
       <Footer />
+      <MobileNav />
     </>
   );
 }

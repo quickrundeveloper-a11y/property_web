@@ -8,8 +8,8 @@ export default function Footer() {
           {/* Logo */}
           <div className="col-span-1 sm:col-span-2 lg:col-span-1">
             <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">🏠</span>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <span className="text-blue-600 font-bold text-2xl">🏠</span>
               </div>
               <span className="text-gray-900 font-bold text-xl">Prime Nivaas</span>
             </Link>

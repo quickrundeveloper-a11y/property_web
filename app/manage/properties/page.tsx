@@ -31,6 +31,8 @@ interface Property {
   areaUnit?: string;
   area_unit?: string;
   propertyCategory?: string;
+  type?: string;
+  propertyType?: string;
 }
 
 export default function MyProperties() {
@@ -69,7 +71,17 @@ export default function MyProperties() {
       per_chataks: '/chataks',
       per_perch: '/perch'
     };
-    return map[unit] || '/month';
+
+    const rawType = String(property.type || property.propertyType || '').toLowerCase();
+    const isSale = rawType.includes('sell') || rawType.includes('sale') || rawType.includes('buy');
+
+    if (map[unit]) {
+        if (isSale && (unit === 'per_month' || unit === 'per_year')) return '';
+        return map[unit];
+    }
+    
+    if (rawType.includes('rent') || rawType.includes('pg')) return '/month';
+    return '';
   };
 
   useEffect(() => {
@@ -218,7 +230,7 @@ export default function MyProperties() {
                     {property.location || property.address || "Location Address"}
                   </p>
                   
-                  <div className="flex items-center justify-between text-gray-500">
+                  <div className="flex flex-wrap items-center justify-between text-gray-500 gap-2">
                     <div className="flex items-center gap-1">
                       <Bed className="w-3.5 h-3.5 text-[#0066FF]" />
                       <span className="text-[10px]"><span className="font-bold text-gray-700">{property.bedrooms || property.beds || 3}</span> Beds</span>

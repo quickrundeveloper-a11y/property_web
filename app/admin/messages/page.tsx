@@ -109,9 +109,9 @@ export default function MessagesAdmin() {
 
           {/* Filters */}
           <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:space-x-4 space-x-0">
               <span className="text-sm font-medium text-gray-700">Filter:</span>
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2 space-x-0">
                 <button
                   onClick={() => setFilter('all')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -172,9 +172,9 @@ export default function MessagesAdmin() {
                       message.status === 'unread' ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                      <div className="flex-1 w-full">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
                           <h3 className="font-semibold text-gray-900">{message.name}</h3>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(message.status)}`}>
                             {message.status}
@@ -198,18 +198,18 @@ export default function MessagesAdmin() {
                         </div>
                       </div>
                       
-                      <div className="flex flex-col space-y-2 ml-4">
+                      <div className="flex sm:flex-col flex-row gap-2 sm:space-y-2 sm:ml-4 w-full sm:w-auto">
                         {message.status === 'unread' ? (
                           <button
                             onClick={() => markAsRead(message.id)}
-                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs transition-colors"
+                            className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs transition-colors"
                           >
                             Mark Read
                           </button>
                         ) : (
                           <button
                             onClick={() => markAsUnread(message.id)}
-                            className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-xs transition-colors"
+                            className="flex-1 sm:flex-none bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-xs transition-colors"
                           >
                             Mark Unread
                           </button>
@@ -217,14 +217,14 @@ export default function MessagesAdmin() {
                         
                         <a
                           href={`tel:${message.phone}`}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs transition-colors text-center"
+                          className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs transition-colors text-center"
                         >
                           Call
                         </a>
                         
                         <button
                           onClick={() => deleteMessage(message.id)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs transition-colors"
+                          className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs transition-colors"
                         >
                           Delete
                         </button>

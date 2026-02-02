@@ -179,8 +179,16 @@ function PropertySearchContent() {
       per_chataks: '/chataks',
       per_perch: '/perch'
     };
-    if (map[unit]) return map[unit];
-    if (normalizeType(p.type) === 'rent') return '/month';
+    
+    const type = normalizeType(p.type);
+    const isSale = type === 'sell' || type === 'buy';
+    
+    if (map[unit]) {
+      if (isSale && (unit === 'per_month' || unit === 'per_year')) return '';
+      return map[unit];
+    }
+    
+    if (type === 'rent') return '/month';
     return '';
   };
 
@@ -359,7 +367,7 @@ function PropertySearchContent() {
                       {property.location || "Prime Location"}
                     </p>
                     
-                    <div className="flex items-center justify-between text-sm text-gray-600">
+                    <div className="flex flex-wrap items-center justify-between text-sm text-gray-600 gap-2">
                       {String(property.propertyCategory || "").toLowerCase() !== "land" && (
                       <div className="flex items-center">
                         <svg className="w-4 h-4 mr-1 text-blue-500" fill="currentColor" viewBox="0 0 20 20">

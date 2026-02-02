@@ -152,7 +152,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto bg-white border border-gray-200 shadow-sm rounded-lg p-8">
+      <div className="max-w-4xl mx-auto bg-white border border-gray-200 shadow-sm rounded-lg p-4 sm:p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-8">My Profile</h1>
         
         {message && (

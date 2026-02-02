@@ -30,3 +30,60 @@ body {
 .animate-fadeIn {
   animation: fadeIn 0.4s ease-out forwards;
 }
+
+/* Ensure Google Places Autocomplete dropdown is visible above other elements */
+.pac-container {
+  z-index: 10000 !important;
+  border-radius: 0.5rem;
+  margin-top: 0.5rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  font-family: inherit;
+  background-color: #ffffff;
+}
+
+.pac-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #4b5563;
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.5;
+}
+
+.pac-item:first-child {
+  border-top: none;
+}
+
+.pac-item:hover {
+  background-color: #eff6ff; /* blue-50 */
+}
+
+.pac-item-selected {
+  background-color: #eff6ff; /* blue-50 */
+}
+
+.pac-item-query {
+  font-size: 0.875rem;
+  color: #111827; /* gray-900 */
+  font-weight: 500;
+  padding-right: 0.25rem;
+}
+
+.pac-icon {
+  margin-top: 0;
+  margin-right: 0;
+}
+
+/* Hide the default marker icon if you want a cleaner look, or style it */
+.pac-icon-marker {
+  filter: grayscale(100%) opacity(0.6);
+}
+
+/* Style the 'powered by Google' logo container */
+.pac-logo:after {
+  margin: 0.5rem;
+}

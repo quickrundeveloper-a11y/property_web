@@ -48,6 +48,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
   const [existingVideo, setExistingVideo] = useState<string | null>(null);
   const [floorPlan, setFloorPlan] = useState<File | null>(null);
   const [existingFloorPlan, setExistingFloorPlan] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     location: "",
@@ -93,17 +94,19 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
     facingRoadWidth: "",
     facingRoadUnit: "Meter",
     ownership: "",
-    pricePerSqFt: "",
     allInclusivePrice: false,
     taxExcluded: false,
     priceNegotiable: false,
     uniqueDescription: "",
     availableFrom: "",
     preferredTenants: [] as string[],
-    userType: "Owner" as "Owner" | "Agent" | "Builder",
+    userType: "" as "Owner" | "Agent" | "Builder" | "",
   });
 
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [possessionPickerOpen, setPossessionPickerOpen] = useState(false);
+  const [possessionYear, setPossessionYear] = useState<string>("");
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   
   useEffect(() => {
     if (initialData) {
@@ -152,14 +155,13 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         facingRoadWidth: initialData.facingRoadWidth ? String(initialData.facingRoadWidth) : "",
         facingRoadUnit: initialData.facingRoadUnit || "Meter",
         ownership: initialData.ownership || "",
-        pricePerSqFt: initialData.pricePerSqFt ? String(initialData.pricePerSqFt) : "",
         allInclusivePrice: initialData.allInclusivePrice || false,
         taxExcluded: initialData.taxExcluded || false,
         priceNegotiable: initialData.priceNegotiable || false,
         uniqueDescription: initialData.uniqueDescription || "",
         availableFrom: initialData.availableFrom || "",
         preferredTenants: initialData.preferredTenants || [],
-        userType: initialData.userType || "Owner",
+        userType: initialData.userType || "",
       });
       if (initialData.images) {
         setExistingImages(initialData.images);
@@ -185,6 +187,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
   const [coverSelection, setCoverSelection] = useState<{ source: 'existing' | 'new', index: number } | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
+  const initializedInputRef = useRef<HTMLInputElement | null>(null);
   const mapRef = useRef<MapsLike | null>(null);
   const markerRef = useRef<MarkerLike | null>(null);
   const geocoderRef = useRef<GeocoderLike | null>(null);
@@ -375,109 +378,49 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
   }, []);
   
   useEffect(() => {
-    if (!mapsReady || !mapContainerRef.current) return;
-    if (mapRef.current) return;
-    // Initialize map
-    const center = {
-      lat: formData.lat ?? 19.0760,
-      lng: formData.lng ?? 72.8777
-    };
+    if (!mapsReady) return;
+    
+    // Initialize Google Maps objects
     const googleObj = (window as unknown as {
       google?: {
         maps: {
-          Map: new (el: HTMLElement, opts: unknown) => MapsLike;
-          Marker: new (opts: unknown) => MarkerLike;
           Geocoder: new () => GeocoderLike;
           places: { Autocomplete: new (el: HTMLInputElement, opts: unknown) => AutocompleteLike };
-          marker?: { AdvancedMarkerElement: new (opts: unknown) => MarkerLike };
         };
       };
     }).google!;
-    mapRef.current = new googleObj.maps.Map(mapContainerRef.current!, {
-      center,
-      zoom: 12,
-      disableDefaultUI: true
-    });
-    geocoderRef.current = new googleObj.maps.Geocoder();
     
-    // Create standard draggable marker (avoids Advanced Marker mapId requirement)
-    const marker = new googleObj.maps.Marker({
-      map: mapRef.current,
-      position: center,
-      draggable: true
-    });
-    markerRef.current = marker;
+    // Initialize Geocoder
+    if (!geocoderRef.current) {
+      geocoderRef.current = new googleObj.maps.Geocoder();
+    }
     
-    // Map click to set marker and reverse geocode
-    mapRef.current.addListener("click", async (e: unknown) => {
-      const evt = e as { latLng?: { lat: () => number; lng: () => number } };
-      if (!evt.latLng) return;
-      const lat = evt.latLng.lat();
-      const lng = evt.latLng.lng();
-      if (markerRef.current?.setPosition) {
-        markerRef.current.setPosition({ lat, lng });
-      } else if (markerRef.current) {
-        markerRef.current.position = { lat, lng };
-      }
-      mapRef.current?.panTo({ lat, lng });
-      setFormData(prev => ({ ...prev, lat, lng }));
-      try {
-        const geocode = await geocoderRef.current!.geocode({ location: { lat, lng } });
-        const address = geocode.results?.[0]?.formatted_address;
-        if (address) {
-          setFormData(prev => ({ ...prev, location: address }));
-          if (autocompleteInputRef.current) {
-            autocompleteInputRef.current.value = address;
-          }
-        }
-      } catch {
-        // ignore geocoder errors
-      }
-    });
-    
-    // Marker drag end to update address and lat/lng
-    markerRef.current.addListener?.("dragend", async (e: unknown) => {
-      const evt = e as { latLng?: { lat: () => number; lng: () => number } };
-      if (!evt.latLng) return;
-      const lat = evt.latLng.lat();
-      const lng = evt.latLng.lng();
-      setFormData(prev => ({ ...prev, lat, lng }));
-      try {
-        const geocode = await geocoderRef.current!.geocode({ location: { lat, lng } });
-        const address = geocode.results?.[0]?.formatted_address;
-        if (address) {
-          setFormData(prev => ({ ...prev, location: address }));
-          if (autocompleteInputRef.current) {
-            autocompleteInputRef.current.value = address;
-          }
-        }
-      } catch {
-        // ignore geocoder errors
-      }
-    });
-    
-    // Autocomplete
-    if (autocompleteInputRef.current) {
+    // Initialize Autocomplete
+    // We check if the input exists and if it's different from the one we last initialized
+    if (autocompleteInputRef.current && autocompleteInputRef.current !== initializedInputRef.current) {
+      
       const autocomplete = new googleObj.maps.places.Autocomplete(autocompleteInputRef.current, {
         fields: ["geometry", "formatted_address"]
       });
+      
       autocomplete.addListener("place_changed", () => {
         const place = autocomplete.getPlace();
         const loc = place.geometry?.location;
         const address = place.formatted_address || "";
+        
         if (loc) {
           const lat = loc.lat();
           const lng = loc.lng();
-          mapRef.current?.panTo({ lat, lng });
-          mapRef.current?.setZoom(14);
-          if (markerRef.current?.setPosition) markerRef.current.setPosition({ lat, lng });
           setFormData(prev => ({ ...prev, location: address, lat, lng }));
         } else {
           setFormData(prev => ({ ...prev, location: address }));
         }
       });
+      
+      // Mark this input element as initialized
+      initializedInputRef.current = autocompleteInputRef.current;
     }
-  }, [mapsReady, formData.lat, formData.lng]);
+  }, [mapsReady, activeStep]);
   
   const handleFilesAdd = (files: File[]) => {
     setImages(prev => {
@@ -505,8 +448,20 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
     switch (step) {
       case 1:
+        if (!formData.userType) {
+          newErrors.userType = true;
+          isValid = false;
+        }
+        if (!formData.propertyType) {
+          newErrors.propertyType = true;
+          isValid = false;
+        }
         if (!formData.propertyCategory) {
           newErrors.propertyCategory = true;
+          isValid = false;
+        }
+        if (!formData.type) {
+          newErrors.type = true;
           isValid = false;
         }
         break;
@@ -522,45 +477,48 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         
         if (isLand) {
              if (!formData.plotArea) newErrors.plotArea = true;
-             if (!formData.floorsAllowed) newErrors.floorsAllowed = true;
-             if (!formData.boundaryWall) newErrors.boundaryWall = true;
-             if (!formData.openSides) newErrors.openSides = true;
-             if (!formData.anyConstruction) newErrors.anyConstruction = true;
-             if (!formData.possessionBy) newErrors.possessionBy = true;
         } else {
            if (formData.propertyType === "residential" && !formData.bedrooms) newErrors.bedrooms = true;
            if (!formData.bathrooms) newErrors.bathrooms = true;
-           if (!formData.furnishingStatus) newErrors.furnishingStatus = true;
-           if (!formData.totalFloors) newErrors.totalFloors = true;
-           if (!formData.floorNumber) newErrors.floorNumber = true;
            if (!formData.area) newErrors.area = true;
-           
-           if (!formData.availabilityStatus) {
-             newErrors.availabilityStatus = true;
-           } else if (formData.availabilityStatus === "Ready to move") {
-             if (!formData.ageOfProperty) newErrors.ageOfProperty = true;
-           } else if (formData.availabilityStatus === "Under construction") {
-             if (!formData.possessionBy) newErrors.possessionBy = true;
-           }
+        }
+
+        if (!formData.description) {
+          newErrors.description = true;
+          isValid = false;
         }
         
         if (Object.keys(newErrors).length > 0) isValid = false;
         break;
       case 4:
-        return true;
-      case 5:
-        if (formData.uniqueDescription && formData.uniqueDescription.length < 30) {
-          newErrors.uniqueDescription = true;
+        if (images.length === 0 && existingImages.length === 0) {
+          newErrors.images = true;
           isValid = false;
         }
-        
-        if (!formData.ownership) {
-          newErrors.ownership = true;
+        break;
+      case 5:
+        if (!formData.title) {
+          newErrors.title = true;
           isValid = false;
         }
         
         if (!formData.price) {
           newErrors.price = true;
+          isValid = false;
+        }
+
+        if (!formData.OwnerName) {
+          newErrors.OwnerName = true;
+          isValid = false;
+        }
+
+        if (!formData.phone) {
+          newErrors.phone = true;
+          isValid = false;
+        }
+
+        if (!formData.email) {
+          newErrors.email = true;
           isValid = false;
         }
         break;
@@ -575,8 +533,10 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
   const handleNext = () => {
     if (activeStep < 5) {
       if (!validateStep(activeStep)) {
+        setWarning("Please fill all mandatory fields marked with *");
         return;
       }
+      setWarning(null);
       
       const nextStep = activeStep + 1;
       setInternalStep(nextStep);
@@ -588,6 +548,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
   };
 
   const handleBack = () => {
+    setWarning(null);
     if (activeStep > 1) {
       const prevStep = activeStep - 1;
       setInternalStep(prevStep);
@@ -600,17 +561,19 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
     <div className="space-y-8 animate-fadeIn">
       {/* User Type Section */}
       <div>
-        <h3 className="text-lg font-bold text-[#000929] mb-4">You are:</h3>
-        <div className="flex flex-wrap gap-4 mb-6">
+        <h3 className="text-lg font-bold text-[#000929] mb-4">You are: <span className="text-red-500">*</span></h3>
+        <div className="flex flex-wrap gap-3 md:gap-4 mb-6">
           {["Owner", "Agent", "Builder"].map((type) => (
             <button
               key={type}
               type="button"
               onClick={() => setFormData({ ...formData, userType: type as "Owner" | "Agent" | "Builder" })}
-              className={`px-8 py-3 rounded-full text-base font-medium transition-all min-w-[140px] border ${
+              className={`px-4 md:px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all flex-1 min-w-[100px] sm:min-w-[140px] border ${
                 formData.userType === type
                   ? "bg-blue-50 text-[#0085FF] border-[#0085FF]"
-                  : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+                  : errors.userType
+                    ? "bg-white border-red-500 text-gray-500"
+                    : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
               }`}
             >
               {type}
@@ -621,8 +584,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
       {/* Property Type Section (Moved to Top) */}
       <div>
-        <h3 className="text-sm font-medium text-gray-500 mb-3">Property Type</h3>
-        <div className="flex flex-wrap gap-4 mb-6">
+        <h3 className="text-sm font-medium text-gray-500 mb-3">Property Type <span className="text-red-500">*</span></h3>
+        <div className="flex flex-wrap gap-3 md:gap-4 mb-6">
           {[
             { label: "Residential", value: "residential" },
             { label: "Commercial", value: "commercial" }
@@ -635,10 +598,12 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                 propertyType: option.value as "residential" | "commercial", 
                 propertyCategory: option.value === "residential" ? "Flat/Apartment" : "Office"
               })}
-              className={`px-8 py-3 rounded-lg text-base font-medium transition-all min-w-[140px] ${
+              className={`px-4 md:px-8 py-3 rounded-lg text-sm md:text-base font-medium transition-all flex-1 min-w-[100px] sm:min-w-[140px] ${
                 formData.propertyType === option.value
                   ? "bg-blue-50 text-[#0066FF] border border-blue-50" 
-                  : "bg-white border border-gray-200 text-gray-900 hover:border-gray-300"
+                  : errors.propertyType 
+                    ? "bg-white border border-red-500 text-gray-900"
+                    : "bg-white border border-gray-200 text-gray-900 hover:border-gray-300"
               }`}
             >
               {option.label}
@@ -647,7 +612,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         </div>
 
         {/* Property Category Grid (Image 1 Style) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <h3 className="text-sm font-medium text-gray-500 mb-3">Property Category <span className="text-red-500">*</span></h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
           {(() => {
             let options = [];
             if (formData.propertyType === "residential") {
@@ -660,7 +626,6 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                         { label: "Villa", value: "Villa", icon: Home },
                         { label: "Penthouse", value: "Penthouse", icon: ArrowUp },
                         { label: "Studio", value: "1 RK/ Studio Apartment", icon: Armchair },
-                        { label: "Plot", value: "Plot / Land", icon: LandPlot },
                         { label: "Farm House", value: "Farmhouse", icon: Warehouse },
                         { label: "Agricultural Land", value: "Agricultural Land", icon: Sprout }
                       ];
@@ -707,7 +672,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                   className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all h-32 hover:shadow-md ${
                     formData.propertyCategory === opt.value
                       ? "bg-blue-50 border-[#0066FF] text-[#0066FF] shadow-sm" 
-                      : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+                      : errors.propertyCategory
+                        ? "bg-white border-red-500 text-gray-500"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                 >
                   <Icon className={`w-8 h-8 mb-3 ${formData.propertyCategory === opt.value ? "text-[#0066FF]" : "text-gray-400"}`} />
@@ -720,8 +687,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
       {/* Looking To Section (Moved to Bottom) */}
       <div>
-        <h3 className="text-sm font-medium text-gray-500 mb-3">Looking to</h3>
-        <div className="flex flex-wrap gap-4">
+        <h3 className="text-sm font-medium text-gray-500 mb-3">Looking to <span className="text-red-500">*</span></h3>
+        <div className="flex flex-wrap gap-3 md:gap-4">
           {[
             { label: "Rent", value: "rent" },
             { label: "Sell", value: "sell" },
@@ -750,10 +717,12 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
                 setFormData({ ...formData, type: newType, propertyCategory: newCategory });
               }}
-              className={`px-8 py-3 rounded-lg text-base font-medium transition-all min-w-[120px] ${
+              className={`px-4 md:px-8 py-3 rounded-lg text-sm md:text-base font-medium transition-all flex-1 min-w-[90px] sm:min-w-[120px] ${
                 lookingTo === option.value
                   ? "bg-blue-50 text-[#0066FF] border border-blue-50" 
-                  : "bg-white border border-gray-200 text-gray-900 hover:border-gray-300"
+                  : errors.type 
+                    ? "bg-white border border-red-500 text-gray-900"
+                    : "bg-white border border-gray-200 text-gray-900 hover:border-gray-300"
               }`}
             >
               {option.label}
@@ -768,7 +737,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
     <div className="space-y-6 animate-fadeIn">
       <h3 className="text-lg font-bold text-[#000929] mb-4">Location Details</h3>
       <div>
-        <label className="block text-sm mb-1 text-gray-600 font-medium">City / Location</label>
+        <label className="block text-sm mb-1 text-gray-600 font-medium">City / Location <span className="text-red-500">*</span></label>
         <div className="relative">
           {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
             <input
@@ -781,14 +750,19 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
               placeholder="Search for a location"
             />
           ) : (
-            <input
-              type="text"
-              required
-              className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.location ? "border-red-500" : "border-gray-300"}`}
-              value={formData.location}
-              onChange={e => setFormData({...formData, location: e.target.value})}
-              placeholder="e.g. Mumbai, India"
-            />
+            <div>
+              <input
+                type="text"
+                required
+                className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.location ? "border-red-500" : "border-gray-300"}`}
+                value={formData.location}
+                onChange={e => setFormData({...formData, location: e.target.value})}
+                placeholder="e.g. Mumbai, India"
+              />
+              <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+                <span>⚠️</span> Location suggestions unavailable (API Key missing)
+              </p>
+            </div>
           )}
           <button
             type="button"
@@ -807,11 +781,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
       </div>
 
       {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
-        <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-          <div ref={mapContainerRef} className="w-full h-96"></div>
-          <div className="p-3 bg-gray-50 text-xs text-gray-500 text-center">
-            Drag the marker to pinpoint the exact location
-          </div>
+        <div className="hidden">
+           {/* Map container removed as per user request */}
+           <div ref={mapContainerRef}></div>
         </div>
       )}
     </div>
@@ -827,7 +799,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
            {/* Add Area Details */}
            <div>
              <div className="flex items-center gap-2 mb-4">
-               <h3 className="text-lg font-bold text-[#000929]">Add Area Details</h3>
+               <h3 className="text-lg font-bold text-[#000929]">Add Area Details <span className="text-red-500">*</span></h3>
                <div className="text-gray-400 cursor-help" title="Enter the total area of the plot">
                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                </div>
@@ -869,19 +841,19 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
            </div>
 
            {/* Property Dimensions */}
-           <div>
-             <h3 className="text-lg font-bold text-[#000929] mb-4">Property Dimensions <span className="text-sm font-normal text-gray-400 italic">(Optional)</span></h3>
-             <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-[#000929] mb-4">Property Dimensions</h3>
+              <div className="space-y-4">
                 <input
                   type="number"
-                  className="w-full p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+                  className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.plotLength ? "border-red-500" : "border-gray-300"}`}
                   value={formData.plotLength}
                   onChange={e => setFormData({...formData, plotLength: e.target.value})}
                   placeholder="Length of plot (in Ft.)"
                 />
                 <input
                   type="number"
-                  className="w-full p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+                  className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.plotBreadth ? "border-red-500" : "border-gray-300"}`}
                   value={formData.plotBreadth}
                   onChange={e => setFormData({...formData, plotBreadth: e.target.value})}
                   placeholder="Breadth of plot (in Ft.)"
@@ -891,7 +863,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
            {/* Floors Allowed */}
            <div>
-             <h3 className="text-lg font-bold text-[#000929] mb-4">Floors Allowed For Construction</h3>
+             <h3 className="text-lg font-bold text-[#000929] mb-4">Floors Allowed For Construction <span className="text-red-500">*</span></h3>
              <input
                type="number"
                className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.floorsAllowed ? "border-red-500" : "border-gray-300"}`}
@@ -903,14 +875,14 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
            {/* Boundary Wall */}
            <div>
-             <h3 className="text-lg font-bold text-[#000929] mb-4">Is there a boundary wall around the property?</h3>
+             <h3 className="text-lg font-bold text-[#000929] mb-4">Is there a boundary wall around the property? <span className="text-red-500">*</span></h3>
              <div className="flex gap-3">
                {["Yes", "No"].map(opt => (
                  <button
                    key={opt}
                    type="button"
                    onClick={() => setFormData({...formData, boundaryWall: opt as "Yes" | "No"})}
-                   className={`px-6 py-2 rounded-full border text-sm font-medium transition-all ${
+                   className={`px-4 md:px-6 py-2 rounded-full border text-sm font-medium transition-all ${
                      formData.boundaryWall === opt
                        ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
                        : `bg-white ${errors.boundaryWall ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
@@ -925,7 +897,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
            {/* Open Sides */}
            <div>
              <div className="flex items-center gap-2 mb-4">
-               <h3 className="text-lg font-bold text-[#000929]">No. of open sides</h3>
+               <h3 className="text-lg font-bold text-[#000929]">No. of open sides <span className="text-red-500">*</span></h3>
                <div className="text-gray-400 cursor-help" title="Number of sides open to road/street">
                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                </div>
@@ -936,7 +908,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                    key={opt}
                    type="button"
                    onClick={() => setFormData({...formData, openSides: opt})}
-                   className={`w-12 h-12 rounded-full border text-sm font-medium flex items-center justify-center transition-all ${
+                   className={`w-10 h-10 md:w-12 md:h-12 rounded-full border text-sm font-medium flex items-center justify-center transition-all ${
                      formData.openSides === opt
                        ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
                        : `bg-white ${errors.openSides ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
@@ -951,7 +923,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
            {/* Any Construction */}
            <div>
              <div className="flex items-center gap-2 mb-4">
-                <h3 className="text-lg font-bold text-[#000929]">Any construction done on this property?</h3>
+                <h3 className="text-lg font-bold text-[#000929]">Any construction done on this property? <span className="text-red-500">*</span></h3>
                 <div className="text-gray-400 cursor-help" title="Is there any existing structure?">
                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                </div>
@@ -962,7 +934,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                    key={opt}
                    type="button"
                    onClick={() => setFormData({...formData, anyConstruction: opt as "Yes" | "No"})}
-                   className={`px-6 py-2 rounded-full border text-sm font-medium transition-all ${
+                   className={`px-4 md:px-6 py-2 rounded-full border text-sm font-medium transition-all ${
                      formData.anyConstruction === opt
                        ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
                        : `bg-white ${errors.anyConstruction ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
@@ -976,13 +948,27 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
            {/* Possession By */}
            <div>
-             <h3 className="text-lg font-bold text-[#000929] mb-4">Possession By</h3>
+             <h3 className="text-lg font-bold text-[#000929] mb-4">Possession By <span className="text-red-500">*</span></h3>
              <div className="flex flex-wrap gap-3">
-               {["Immediate", "Within 3 Months", "Within 6 Months", "Select Year +"].map(opt => (
+               {[
+                 "Immediate", 
+                 "Within 3 Months", 
+                 "Within 6 Months", 
+                 ...(formData.possessionBy && !["Immediate", "Within 3 Months", "Within 6 Months", "Select Year +"].includes(formData.possessionBy) ? [formData.possessionBy] : []),
+                 "Select Year +"
+               ].map(opt => (
                  <button
                    key={opt}
                    type="button"
-                   onClick={() => setFormData({...formData, possessionBy: opt})}
+                   onClick={() => {
+                     if (opt === "Select Year +") {
+                       setPossessionPickerOpen(true);
+                       setFormData({...formData, possessionBy: ""});
+                     } else {
+                       setPossessionPickerOpen(false);
+                       setFormData({...formData, possessionBy: opt});
+                     }
+                   }}
                    className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
                      formData.possessionBy === opt
                        ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
@@ -993,6 +979,44 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                  </button>
                ))}
              </div>
+              {possessionPickerOpen && (
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <select
+                      value={possessionYear}
+                      onChange={(e) => setPossessionYear(e.target.value)}
+                      className="p-2.5 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent"
+                    >
+                      <option value="">Select Year</option>
+                      {Array.from({length: 7}).map((_, idx) => {
+                        const year = new Date().getFullYear() + idx;
+                        return <option key={year} value={String(year)}>{year}</option>;
+                      })}
+                    </select>
+                  </div>
+                  {possessionYear && (
+                    <div className="flex flex-wrap gap-2">
+                      {MONTHS.map(m => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => {
+                            setFormData({...formData, possessionBy: `${m} ${possessionYear}`});
+                            setPossessionPickerOpen(false);
+                          }}
+                          className={`px-3 py-2 rounded-full border text-xs font-medium transition-all ${
+                            `${m} ${possessionYear}` === formData.possessionBy
+                              ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                              : "bg-white border-gray-300 text-gray-700 hover:border-gray-400"
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
            </div>
         </>
       ) : (
@@ -1034,7 +1058,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                     className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
                       formData.balconies === num
                         ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                        : errors.balconies
+                          ? "bg-white border-red-500 text-gray-500"
+                          : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
                     }`}
                   >
                     {num}
@@ -1046,7 +1072,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           )}
          
          <div>
-             <label className="block text-sm mb-2 text-gray-600 font-medium">{formData.propertyType === "commercial" ? "Washrooms" : "Bathrooms"}</label>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">{formData.propertyType === "commercial" ? "Washrooms" : "Bathrooms"} <span className="text-red-500">*</span></label>
              <div className="flex gap-2">
                {["1", "2", "3", "4+"].map(num => (
                  <button
@@ -1069,19 +1095,21 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
         <div className="mb-6">
              <label className="block text-sm mb-2 text-gray-600 font-medium">Furnishing Status</label>
-             <div className="flex gap-3">
+             <div className="flex flex-wrap gap-2 md:gap-3">
                {["Fully Furnished", "Semi-Furnished", "Unfurnished"].map(status => (
                  <button
                    key={status}
                    type="button"
                    onClick={() => setFormData({...formData, furnishingStatus: status === "Fully Furnished" ? "furnished" : status === "Semi-Furnished" ? "semi-furnished" : "unfurnished"})}
-                   className={`px-4 py-2 rounded-full border text-sm font-medium transition-all flex items-center gap-2 ${
-                     formData.furnishingStatus === (status === "Fully Furnished" ? "furnished" : status === "Semi-Furnished" ? "semi-furnished" : "unfurnished")
-                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
-                   }`}
+                   className={`px-3 md:px-4 py-2 rounded-full border text-xs md:text-sm font-medium transition-all flex items-center justify-center gap-2 flex-1 min-w-[130px] ${
+                    formData.furnishingStatus === (status === "Fully Furnished" ? "furnished" : status === "Semi-Furnished" ? "semi-furnished" : "unfurnished")
+                      ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                      : errors.furnishingStatus 
+                        ? "bg-white border-red-500 text-gray-500"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
                  >
-                   <Sofa className="w-4 h-4" />
+                   <Sofa className="w-3.5 h-3.5 md:w-4 md:h-4" />
                    {status}
                  </button>
                ))}
@@ -1090,7 +1118,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
            <div>
-             <label className="block text-sm mb-2 text-gray-600 font-medium">Carpet Area</label>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Carpet Area <span className="text-red-500">*</span></label>
              <div className="flex gap-2">
                <input
                  type="text"
@@ -1106,11 +1134,23 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                  onChange={e => setFormData({...formData, units: e.target.value})}
                >
                  <option value="sqft">Sq.ft</option>
-                 <option value="sqyards">Sq.yrd</option>
-                 <option value="sqm">Sq.m</option>
-                 <option value="acres">Acres</option>
-                 <option value="marla">Marla</option>
-                 <option value="cents">Cents</option>
+                <option value="sqyards">Sq.yrd</option>
+                <option value="sqm">Sq.m</option>
+                <option value="acres">Acres</option>
+                <option value="marla">Marla</option>
+                <option value="cents">Cents</option>
+                <option value="bigha">Bigha</option>
+                <option value="kottah">Kottah</option>
+                <option value="kanal">Kanal</option>
+                <option value="grounds">Grounds</option>
+                <option value="ares">Ares</option>
+                <option value="biswa">Biswa</option>
+                <option value="guntha">Guntha</option>
+                <option value="aankadam">Aankadam</option>
+                <option value="hectares">Hectares</option>
+                <option value="rood">Rood</option>
+                <option value="chataks">Chataks</option>
+                <option value="perch">Perch</option>
                </select>
              </div>
            </div>
@@ -1147,7 +1187,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label className="block text-sm mb-2 text-gray-600 font-medium">Reserved Parking</label>
+              <label className="block text-sm mb-2 text-gray-600 font-medium">Reserved Parking <span className="text-red-500">*</span></label>
               <div className="grid grid-cols-2 gap-4">
                  {/* Covered Parking Counter */}
                  <div>
@@ -1251,17 +1291,18 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         {formData.type === 'rent' && (
           <>
             <div className="mb-6">
-              <label className="block text-sm mb-2 text-gray-600 font-medium">Available from</label>
+              <label className="block text-sm mb-2 text-gray-600 font-medium">Available from <span className="text-red-500">*</span></label>
               <input
                 type="date"
-                className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
+                className={`w-full p-2.5 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900 ${errors.availableFrom ? "border-red-500" : "border-gray-300"}`}
                 value={formData.availableFrom}
                 onChange={e => setFormData({...formData, availableFrom: e.target.value})}
               />
             </div>
 
+            {formData.propertyType === 'residential' && (
             <div className="mb-6">
-               <label className="block text-sm mb-2 text-gray-600 font-medium">Willing to rent out to</label>
+               <label className="block text-sm mb-2 text-gray-600 font-medium">Willing to rent out to <span className="text-red-500">*</span></label>
                <div className="flex flex-wrap gap-3">
                  {["Family", "Single men", "Single women"].map(tenant => (
                    <button
@@ -1278,7 +1319,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                      className={`px-4 py-2 rounded-full border text-sm font-medium transition-all flex items-center gap-2 ${
                        (formData.preferredTenants || []).includes(tenant)
                          ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                         : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                         : errors.preferredTenants
+                            ? "bg-white border-red-500 text-gray-500"
+                            : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
                      }`}
                    >
                      <span className="text-lg">+</span> {tenant}
@@ -1286,22 +1329,25 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                  ))}
                </div>
             </div>
+            )}
           </>
         )}
 
         <div className="mb-6">
              <label className="block text-sm mb-2 text-gray-600 font-medium">Availability Status</label>
-             <div className="flex gap-3 mb-4">
+             <div className="flex flex-wrap gap-2 md:gap-3 mb-4">
                {["Ready to move", "Under construction"].map(status => (
                  <button
                    key={status}
                    type="button"
                    onClick={() => setFormData({...formData, availabilityStatus: status})}
-                   className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-                     formData.availabilityStatus === status
-                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
-                   }`}
+                   className={`px-3 md:px-4 py-2 rounded-full border text-xs md:text-sm font-medium transition-all flex-1 min-w-[140px] whitespace-nowrap ${
+                    formData.availabilityStatus === status
+                      ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                      : errors.availabilityStatus
+                        ? "bg-white border-red-500 text-gray-500"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
                  >
                    {status}
                  </button>
@@ -1310,7 +1356,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
              
              {formData.availabilityStatus === "Ready to move" && (
                <div>
-                 <label className="block text-sm mb-2 text-gray-600 font-medium">Age of Property</label>
+                 <label className="block text-sm mb-2 text-gray-600 font-medium">Age of Property <span className="text-red-500">*</span></label>
                  <div className="flex flex-wrap gap-3">
                    {["0-1 Years", "1-5 Years", "5-10 Years", "10+ Years"].map(age => (
                      <button
@@ -1318,10 +1364,12 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                        type="button"
                        onClick={() => setFormData({...formData, ageOfProperty: age})}
                        className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-                         formData.ageOfProperty === age
-                           ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                           : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
-                       }`}
+                        formData.ageOfProperty === age
+                          ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                          : errors.ageOfProperty
+                            ? "bg-white border-red-500 text-gray-500"
+                            : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                      }`}
                      >
                        {age}
                      </button>
@@ -1332,23 +1380,79 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
              {formData.availabilityStatus === "Under construction" && (
                <div>
-                 <label className="block text-sm mb-2 text-gray-600 font-medium">Possession By</label>
+                 <label className="block text-sm mb-2 text-gray-600 font-medium">Possession By <span className="text-red-500">*</span></label>
                  <div className="flex flex-wrap gap-3">
-                   {["Dec 2024", "Jan 2025", "Feb 2025", "Mar 2025", "Apr 2025", "Select Year +"].map(date => (
+                  {[
+                   "Dec 2024", 
+                   "Jan 2025", 
+                   "Feb 2025", 
+                   "Mar 2025", 
+                   "Apr 2025", 
+                   ...(formData.possessionBy && !["Dec 2024", "Jan 2025", "Feb 2025", "Mar 2025", "Apr 2025", "Select Year +"].includes(formData.possessionBy) ? [formData.possessionBy] : []),
+                   "Select Year +"
+                 ].map(date => (
                      <button
                        key={date}
                        type="button"
-                       onClick={() => setFormData({...formData, possessionBy: date})}
+                      onClick={() => {
+                        if (date === "Select Year +") {
+                          setPossessionPickerOpen(true);
+                          setFormData({...formData, possessionBy: ""});
+                        } else {
+                          setPossessionPickerOpen(false);
+                          setFormData({...formData, possessionBy: date});
+                        }
+                      }}
                        className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-                         formData.possessionBy === date
-                           ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                           : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
-                       }`}
+                        formData.possessionBy === date
+                          ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                          : errors.possessionBy
+                            ? "bg-white border-red-500 text-gray-500"
+                            : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                      }`}
                      >
                        {date}
                      </button>
                    ))}
                  </div>
+                {possessionPickerOpen && (
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <div className="relative">
+                      <select
+                        value={possessionYear}
+                        onChange={(e) => setPossessionYear(e.target.value)}
+                        className="p-2.5 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent"
+                      >
+                        <option value="">Select Year</option>
+                        {Array.from({length: 7}).map((_, idx) => {
+                          const year = new Date().getFullYear() + idx;
+                          return <option key={year} value={String(year)}>{year}</option>;
+                        })}
+                      </select>
+                    </div>
+                    {possessionYear && (
+                      <div className="flex flex-wrap gap-2">
+                        {MONTHS.map(m => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => {
+                              setFormData({...formData, possessionBy: `${m} ${possessionYear}`});
+                              setPossessionPickerOpen(false);
+                            }}
+                            className={`px-3 py-2 rounded-full border text-xs font-medium transition-all ${
+                              `${m} ${possessionYear}` === formData.possessionBy
+                                ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                                : "bg-white border-gray-300 text-gray-700 hover:border-gray-400"
+                            }`}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                </div>
              )}
         </div>
@@ -1360,7 +1464,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
       <div>
         <label className="block text-lg font-bold text-[#000929] mb-4">Description</label>
         <textarea
-          className="w-full p-4 rounded-xl bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 h-32 resize-none"
+          className={`w-full p-4 rounded-xl bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 h-32 resize-none ${errors.description ? "border-red-500" : "border-gray-300"}`}
           value={formData.description}
           onChange={e => setFormData({...formData, description: e.target.value})}
           placeholder="Tell us more about the property..."
@@ -1372,11 +1476,11 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
   const renderStep4 = () => (
     <div className="space-y-6 animate-fadeIn">
       <div className="flex justify-between items-center mb-2">
-         <h3 className="text-lg font-bold text-[#000929]">Photos</h3>
+         <h3 className="text-lg font-bold text-[#000929]">Photos <span className="text-red-500">*</span></h3>
          <span className="text-sm text-gray-500">Add photos</span>
       </div>
       
-      <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 hover:bg-gray-100 transition-colors"
+      <div className={`border-2 border-dashed rounded-xl p-8 text-center bg-gray-50 hover:bg-gray-100 transition-colors ${errors.images ? "border-red-500" : "border-gray-300"}`}
          onDragOver={e => e.preventDefault()}
          onDrop={e => {
            e.preventDefault();
@@ -1524,7 +1628,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
               className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
                 formData.ownership === type
                   ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                  : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                  : errors.ownership 
+                    ? "bg-white border-red-500 text-gray-500"
+                    : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
               }`}
             >
               {type}
@@ -1540,7 +1646,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
            <div>
              <label className="block text-sm mb-2 text-gray-600 font-medium">Facing</label>
              <select
-               className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
+               className={`w-full p-2.5 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900 ${errors.facing ? "border-red-500" : "border-gray-300"}`}
                value={formData.facing}
                onChange={e => setFormData({...formData, facing: e.target.value})}
              >
@@ -1575,7 +1681,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                    className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all flex items-center gap-1.5 ${
                      (formData.overlooking || []).includes(opt)
                        ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                       : errors.overlooking
+                          ? "bg-white border-red-500 text-gray-500"
+                          : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
                    }`}
                  >
                    <Icon className="w-3.5 h-3.5" />
@@ -1604,7 +1712,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                    className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all flex items-center gap-1.5 ${
                      (formData.waterSource || []).includes(opt)
                        ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                       : errors.waterSource
+                          ? "bg-white border-red-500 text-gray-500"
+                          : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
                    }`}
                  >
                    <Droplets className="w-3.5 h-3.5" />
@@ -1618,7 +1728,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
            <div>
              <label className="block text-sm mb-2 text-gray-600 font-medium">Flooring</label>
              <select
-               className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
+               className={`w-full p-2.5 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900 ${errors.flooring ? "border-red-500" : "border-gray-300"}`}
                value={formData.flooring}
                onChange={e => setFormData({...formData, flooring: e.target.value})}
              >
@@ -1633,7 +1743,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
            <div>
              <label className="block text-sm mb-2 text-gray-600 font-medium">Power Backup</label>
              <select
-               className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900"
+               className={`w-full p-2.5 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent text-gray-900 ${errors.powerBackup ? "border-red-500" : "border-gray-300"}`}
                value={formData.powerBackup}
                onChange={e => setFormData({...formData, powerBackup: e.target.value})}
              >
@@ -1650,7 +1760,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
              <div className="flex gap-2">
                <input
                  type="text"
-                 className="w-full p-2.5 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+                 className={`w-full p-2.5 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.facingRoadWidth ? "border-red-500" : "border-gray-300"}`}
                  value={formData.facingRoadWidth}
                  onChange={e => setFormData({...formData, facingRoadWidth: e.target.value})}
                  placeholder="Width"
@@ -1670,7 +1780,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
       <div>
         <label className="block text-lg font-bold text-[#000929] mb-4">Amenities & Features</label>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 p-2 rounded-xl`}>
           {(formData.propertyType === "residential" ? [
             "Parking", "Swimming Pool", "Gym", "Garden", 
             "Balcony", "Elevator", "Security", "Power Backup", 
@@ -1734,7 +1844,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         <label className="block text-lg font-bold text-[#000929] mb-4">What makes your property unique</label>
         <p className="text-sm text-gray-500 mb-2">Share the unique features of your property to attract buyers.</p>
         <textarea
-          className="w-full p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 min-h-[150px]"
+          className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 min-h-[150px] ${errors.uniqueDescription ? "border-red-500" : "border-gray-300"}`}
           placeholder="Describe your property..."
           value={formData.uniqueDescription}
           onChange={e => {
@@ -1753,32 +1863,20 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         <h3 className="text-lg font-bold text-[#000929] mb-4">Pricing Details</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
            <div>
-             <label className="block text-sm mb-2 text-gray-600 font-medium">Expected Price</label>
+             <label className="block text-sm mb-2 text-gray-600 font-medium">Expected Price <span className="text-red-500">*</span></label>
              <div className="relative">
                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
                <input
                  type="number"
                  required
-                 className="w-full pl-8 p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+                 className={`w-full pl-8 p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.price ? "border-red-500" : "border-gray-300"}`}
                  value={formData.price}
                  onChange={e => setFormData({...formData, price: e.target.value})}
                  placeholder="Enter amount"
                />
              </div>
            </div>
-           <div>
-             <label className="block text-sm mb-2 text-gray-600 font-medium">Price per sq.ft.</label>
-             <div className="relative">
-               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
-               <input
-                 type="number"
-                 className="w-full pl-8 p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
-                 value={formData.pricePerSqFt}
-                 onChange={e => setFormData({...formData, pricePerSqFt: e.target.value})}
-                 placeholder="Enter amount"
-               />
-             </div>
-           </div>
+           {/* Price per sq.ft. removed */}
         </div>
         
         <div className="flex flex-wrap gap-4 mb-6">
@@ -1811,6 +1909,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           </label>
         </div>
 
+        {(!['rent', 'pg'].includes(formData.type?.toLowerCase()) && (formData.propertyCategory?.includes('Land') || formData.propertyCategory?.includes('Plot'))) && (
         <div className="mb-6">
              <label className="block text-sm mb-2 text-gray-600 font-medium">Price Unit (if applicable)</label>
              <select
@@ -1840,14 +1939,15 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
               <option value="per_perch">Perch</option>
             </select>
            </div>
+        )}
       </div>
       
       <div>
-         <label className="block text-sm mb-2 text-gray-600 font-medium">Property Title (Auto-generated or Custom)</label>
+         <label className="block text-sm mb-2 text-gray-600 font-medium">Property Title (Auto-generated or Custom) <span className="text-red-500">*</span></label>
          <input
            type="text"
            required
-           className="w-full p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+           className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.title ? "border-red-500" : "border-gray-300"}`}
            value={formData.title}
            onChange={e => setFormData({...formData, title: e.target.value})}
            placeholder="e.g. 3 BHK Luxury Apartment in Bandra West"
@@ -1858,33 +1958,33 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         <h3 className="text-lg font-bold text-[#000929] mb-4">Contact Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm mb-2 text-gray-600 font-medium">Name</label>
+            <label className="block text-sm mb-2 text-gray-600 font-medium">Name <span className="text-red-500">*</span></label>
             <input
               type="text"
               required
-              className="w-full p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+              className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.OwnerName ? "border-red-500" : "border-gray-300"}`}
               value={formData.OwnerName}
               onChange={e => setFormData({...formData, OwnerName: e.target.value})}
               placeholder="Your full name"
             />
           </div>
           <div>
-            <label className="block text-sm mb-2 text-gray-600 font-medium">Phone Number</label>
+            <label className="block text-sm mb-2 text-gray-600 font-medium">Phone Number <span className="text-red-500">*</span></label>
             <input
               type="tel"
               required
-              className="w-full p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+              className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.phone ? "border-red-500" : "border-gray-300"}`}
               value={formData.phone}
               onChange={e => setFormData({...formData, phone: e.target.value})}
               placeholder="Your contact number"
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm mb-2 text-gray-600 font-medium">Email Address</label>
+            <label className="block text-sm mb-2 text-gray-600 font-medium">Email Address <span className="text-red-500">*</span></label>
             <input
               type="email"
               required
-              className="w-full p-3 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900"
+              className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.email ? "border-red-500" : "border-gray-300"}`}
               value={formData.email}
               onChange={e => setFormData({...formData, email: e.target.value})}
               placeholder="Your email address"
@@ -1897,6 +1997,17 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateStep(activeStep)) {
+      setWarning("Please fill all mandatory fields marked with *");
+      const errorElement = document.querySelector('.border-red-500');
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+    setWarning(null);
+
     setLoading(true);
 
     try {
@@ -2034,9 +2145,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         lat: formData.lat ?? null,
         lng: formData.lng ?? null,
         price: Number(formData.price),
-        priceUnit: formData.priceUnit,
+        priceUnit: (!['rent', 'pg'].includes(formData.type?.toLowerCase()) && !(formData.propertyCategory?.includes('Land') || formData.propertyCategory?.includes('Plot'))) ? null : formData.priceUnit,
         ownership: formData.ownership,
-        pricePerSqFt: formData.pricePerSqFt ? Number(formData.pricePerSqFt) : null,
         allInclusivePrice: formData.allInclusivePrice,
         taxExcluded: formData.taxExcluded,
         priceNegotiable: formData.priceNegotiable,
@@ -2081,6 +2191,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         videoUrl: finalVideoUrl || null,
         floorPlan: finalFloorPlanUrl || null,
         sellerId,
+        userType: formData.userType,
         status: "active" as const
       };
 
@@ -2143,7 +2254,6 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           facingRoadWidth: "",
           facingRoadUnit: "Meter",
           ownership: "",
-          pricePerSqFt: "",
           allInclusivePrice: false,
           taxExcluded: false,
           priceNegotiable: false,
@@ -2178,7 +2288,14 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         {activeStep === 5 && renderStep5()}
       </div>
 
-      <div className="mt-8 flex items-center gap-4 pt-6 border-t border-gray-100">
+      <div className="mt-8 flex flex-col pt-6 border-t border-gray-100">
+        {warning && (
+          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium border border-red-100 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            {warning}
+          </div>
+        )}
+        <div className="flex items-center gap-4">
         {activeStep > 1 && (
           <button
             type="button"
@@ -2206,6 +2323,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
             {loading ? (propertyId ? "Updating..." : "Posting...") : (propertyId ? "Update Property" : "Post Property")}
           </button>
         )}
+      </div>
       </div>
       
       {loading && images.length > 0 && (

@@ -120,7 +120,7 @@ export default function Dashboard() {
                 <h3 className="font-semibold text-lg text-gray-900 mb-1 truncate">{property.title || "Untitled Property"}</h3>
                 <p className="text-gray-500 text-sm mb-3 truncate">{property.location || "No location"}</p>
                 
-                <div className="flex items-center gap-4 text-gray-600 text-sm mb-3">
+                <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm mb-3">
                   <div className="flex items-center gap-1">
                     <Bed className="w-4 h-4" />
                     <span>{property.bedrooms || 0}</span>

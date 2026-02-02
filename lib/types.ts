@@ -55,7 +55,6 @@ export interface Property {
   facingRoadUnit?: string;
   possessionBy?: string;
   ownership?: string;
-  pricePerSqFt?: number | string;
   allInclusivePrice?: boolean;
   taxExcluded?: boolean;
   priceNegotiable?: boolean;
@@ -83,4 +82,6 @@ export interface Property {
   availableFrom?: string;
   preferredTenants?: string[];
   userType?: "Owner" | "Agent" | "Builder";
+  constructionStatus?: string;
+  postedBy?: string;
 }

@@ -488,7 +488,7 @@ function AuthPageContent() {
 
         {/* Name Capture Modal */}
         {captureNameOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
               <h3 className="text-xl font-semibold text-gray-900 mb-2 text-center">Add your name</h3>
               <p className="text-sm text-gray-800 mb-4 text-center">This helps personalize your experience</p>

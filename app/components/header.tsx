@@ -95,8 +95,8 @@ export default function Header() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/home" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <span className="text-blue-600 font-bold text-lg">🏠</span>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <span className="text-white font-bold text-2xl">🏠</span>
               </div>
               <span className="text-white font-bold text-xl">Prime Nivaas</span>
             </Link>
