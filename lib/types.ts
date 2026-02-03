@@ -82,6 +82,7 @@ export interface Property {
   availableFrom?: string;
   preferredTenants?: string[];
   userType?: "Owner" | "Agent" | "Builder";
+  propertySubType?: string;
   constructionStatus?: string;
   postedBy?: string;
 }

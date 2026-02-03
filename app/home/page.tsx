@@ -141,9 +141,11 @@ function HomeContentInner() {
   const [activeTab, setActiveTab] = useState("Buy");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
   // activeFilterCategory removed in favor of single view
   const [tempFilters, setTempFilters] = useState({
-    lookingTo: "sell" as "rent" | "sell" | "pg",
+    lookingTo: "sell" as "rent" | "sell" | "pg" | "all",
     propertyCategoryType: "residential" as "residential" | "commercial",
     location: "",
     propertyTypes: [] as string[],
@@ -157,7 +159,7 @@ function HomeContentInner() {
     postedBy: [] as string[]
   });
   const [appliedFilters, setAppliedFilters] = useState({
-    lookingTo: "sell" as "rent" | "sell" | "pg",
+    lookingTo: "sell" as "rent" | "sell" | "pg" | "all",
     propertyCategoryType: "residential" as "residential" | "commercial",
     location: "",
     propertyTypes: [] as string[],
@@ -343,7 +345,7 @@ function HomeContentInner() {
       // Use a slightly longer timeout to ensure page load/rendering
       setTimeout(() => {
         scrollToFilter(filter);
-      }, 500);
+      }, 100);
     }
   }, [searchParams]);
 
@@ -351,7 +353,25 @@ function HomeContentInner() {
   const { user } = useAuth();
 
   const scrollToFilter = (tab?: string) => {
-    if (tab) setActiveTab(tab);
+    if (tab) {
+      setActiveTab(tab);
+      
+      // Update appliedFilters and tempFilters to match the selected tab
+      const newLookingTo = (tab === 'Rent') ? 'rent' : (tab === 'Buy' ? 'all' : 'sell');
+      
+      setAppliedFilters(prev => ({
+        ...prev,
+        lookingTo: newLookingTo,
+        // Reset price range if switching to rent (usually lower)
+        priceRange: newLookingTo === 'rent' ? [0, 500000] : [0, 50000000]
+      }));
+      
+      setTempFilters(prev => ({
+        ...prev,
+        lookingTo: newLookingTo,
+        priceRange: newLookingTo === 'rent' ? [0, 500000] : [0, 50000000]
+      }));
+    }
     // Add a small delay to ensure state update has processed if needed, though usually not strictly necessary for scrolling
     setTimeout(() => {
       propertyGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -654,7 +674,7 @@ function HomeContentInner() {
     // Apply Advanced Filters
     
     // Filter by Looking To (Rent/Sell/PG)
-    if (appliedFilters.lookingTo) {
+    if (appliedFilters.lookingTo && appliedFilters.lookingTo !== 'all') {
       const type = String(property.type || property.propertyType || '').toLowerCase();
       const unit = String(property.priceUnit || '').toLowerCase();
       const isRent = type.includes('rent') || type.includes('pg') || unit === 'per_month' || unit === 'per_year';
@@ -940,7 +960,10 @@ function HomeContentInner() {
                                   ...prev, 
                                   lookingTo: opt.value as any,
                                   // Force residential if PG is selected
-                                  propertyCategoryType: opt.value === 'pg' ? 'residential' : prev.propertyCategoryType
+                                  propertyCategoryType: opt.value === 'pg' ? 'residential' : prev.propertyCategoryType,
+                                  // Reset property types and price range when switching modes
+                                  propertyTypes: [],
+                                  priceRange: (opt.value === 'rent' || opt.value === 'pg') ? [0, 500000] : [0, 50000000]
                                 }))}
                                 className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${
                                   tempFilters.lookingTo === opt.value
@@ -965,7 +988,11 @@ function HomeContentInner() {
                               .map((type) => (
                               <button
                                 key={type}
-                                onClick={() => setTempFilters(prev => ({ ...prev, propertyCategoryType: type as any }))}
+                                onClick={() => setTempFilters(prev => ({ 
+                                  ...prev, 
+                                  propertyCategoryType: type as any,
+                                  propertyTypes: [] // Clear types when switching category
+                                }))}
                                 className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all capitalize ${
                                   tempFilters.propertyCategoryType === type
                                     ? "bg-white text-[#0066FF] shadow-sm font-bold"
@@ -1244,7 +1271,7 @@ function HomeContentInner() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => scrollToFilter(tab.id)}
                 className={`px-8 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
                   activeTab === tab.id
                     ? "bg-white text-[#0066FF] shadow-sm"
@@ -1479,16 +1506,34 @@ function HomeContentInner() {
             Discover ways to increase your home&apos;s value and get listed. No Spam.
           </p>
           
-          <div className="bg-white p-2 rounded-lg shadow-sm flex flex-col sm:flex-row items-center max-w-lg mx-auto mb-8 gap-2 sm:gap-0">
-            <input
-              type="email"
-              placeholder="Enter your email address"
-              className="flex-1 px-4 py-2 bg-transparent border-none focus:outline-none text-gray-700 placeholder-gray-400 w-full"
-            />
-            <button className="bg-[#0066FF] hover:bg-blue-700 text-white px-8 py-3 rounded-md font-medium transition-colors whitespace-nowrap w-full sm:w-auto">
-              Submit
-            </button>
-          </div>
+          {emailSent ? (
+            <div className="bg-green-50 p-4 rounded-lg shadow-sm flex items-center justify-center max-w-lg mx-auto mb-8 border border-green-100 animate-in fade-in duration-300">
+              <span className="text-green-600 font-medium flex items-center gap-2">
+                <Check className="w-5 h-5" />
+                Email sent successfully!
+              </span>
+            </div>
+          ) : (
+            <div className="bg-white p-2 rounded-lg shadow-sm flex flex-col sm:flex-row items-center max-w-lg mx-auto mb-8 gap-2 sm:gap-0">
+              <input
+                type="email"
+                placeholder="Enter your email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="flex-1 px-4 py-2 bg-transparent border-none focus:outline-none text-gray-700 placeholder-gray-400 w-full"
+              />
+              <button 
+                onClick={() => {
+                  if (email && email.trim() !== "") {
+                    setEmailSent(true);
+                  }
+                }}
+                className="bg-[#0066FF] hover:bg-blue-700 text-white px-8 py-3 rounded-md font-medium transition-colors whitespace-nowrap w-full sm:w-auto"
+              >
+                Submit
+              </button>
+            </div>
+          )}
           
           <p className="text-gray-400 text-sm">
             Join <span className="text-[#0066FF]">10,000+</span> other landlords in our Primenivaas community.

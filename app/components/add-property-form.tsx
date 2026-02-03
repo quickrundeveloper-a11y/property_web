@@ -101,6 +101,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
     availableFrom: "",
     preferredTenants: [] as string[],
     userType: "" as "Owner" | "Agent" | "Builder" | "",
+    propertySubType: "",
   });
 
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -162,6 +163,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         availableFrom: initialData.availableFrom || "",
         preferredTenants: initialData.preferredTenants || [],
         userType: initialData.userType || "",
+        propertySubType: initialData.propertySubType || "",
       });
       if (initialData.images) {
         setExistingImages(initialData.images);
@@ -668,7 +670,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setFormData({...formData, propertyCategory: opt.value})}
+                  onClick={() => setFormData({...formData, propertyCategory: opt.value, propertySubType: ""})}
                   className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all h-32 hover:shadow-md ${
                     formData.propertyCategory === opt.value
                       ? "bg-blue-50 border-[#0066FF] text-[#0066FF] shadow-sm" 
@@ -684,6 +686,64 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           })()}
         </div>
       </div>
+
+      {/* Commercial Sub-Type Selection */}
+      {formData.propertyType === "commercial" && (
+        (() => {
+          const subTypes: Record<string, { title: string, options: string[] }> = {
+            "Office": {
+              title: "Your office type is ...",
+              options: ["Ready to move office space", "Bare shell office space", "Co-working office space"]
+            },
+            "Retail": {
+              title: "Your retail space type is ...",
+              options: ["Commercial Shops", "Commercial Showrooms"]
+            },
+            "Plot / Land": {
+              title: "Your plot / land type is ...",
+              options: ["Commercial Land/Inst. Land", "Agricultural/Farm Land", "Industrial Lands/Plots"]
+            },
+            "Storage": {
+              title: "Your storage type is ...",
+              options: ["Ware House", "Cold Storage"]
+            },
+            "Industry": {
+              title: "Your industry type is ...",
+              options: ["Factory", "Manufacturing"]
+            },
+            "Hospitality": {
+              title: "Your hospitality type is ...",
+              options: ["Hotel/Resorts", "Guest-House/Banquet-Halls"]
+            }
+          };
+
+          const currentSubType = subTypes[formData.propertyCategory];
+          
+          if (!currentSubType) return null;
+
+          return (
+            <div className="mt-6">
+              <h3 className="text-sm font-medium text-gray-500 mb-3">{currentSubType.title}</h3>
+              <div className="flex flex-wrap gap-3">
+                {currentSubType.options.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setFormData({...formData, propertySubType: option})}
+                    className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
+                      formData.propertySubType === option
+                        ? "bg-blue-50 border-[#0066FF] text-[#0066FF]"
+                        : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()
+      )}
 
       {/* Looking To Section (Moved to Bottom) */}
       <div>
@@ -737,7 +797,22 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
     <div className="space-y-6 animate-fadeIn">
       <h3 className="text-lg font-bold text-[#000929] mb-4">Location Details</h3>
       <div>
-        <label className="block text-sm mb-1 text-gray-600 font-medium">City / Location <span className="text-red-500">*</span></label>
+        <div className="flex justify-between items-center mb-2">
+          <label className="block text-sm text-gray-600 font-medium">City / Location <span className="text-red-500">*</span></label>
+          <button
+            type="button"
+            onClick={handleUseCurrentLocation}
+            disabled={loadingLocation}
+            className="text-sm text-[#0085FF] font-medium hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2"
+          >
+            {loadingLocation ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <MapPin className="w-4 h-4" />
+            )}
+            Use Current Location
+          </button>
+        </div>
         <div className="relative">
           {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
             <input
@@ -764,19 +839,6 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
               </p>
             </div>
           )}
-          <button
-            type="button"
-            onClick={handleUseCurrentLocation}
-            disabled={loadingLocation}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-[#0085FF] transition-colors rounded-full hover:bg-blue-50"
-            title="Use current location"
-          >
-            {loadingLocation ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <MapPin className="w-5 h-5" />
-            )}
-          </button>
         </div>
       </div>
 
@@ -862,162 +924,166 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
            </div>
 
            {/* Floors Allowed */}
-           <div>
-             <h3 className="text-lg font-bold text-[#000929] mb-4">Floors Allowed For Construction <span className="text-red-500">*</span></h3>
-             <input
-               type="number"
-               className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.floorsAllowed ? "border-red-500" : "border-gray-300"}`}
-               value={formData.floorsAllowed}
-               onChange={e => setFormData({...formData, floorsAllowed: e.target.value})}
-               placeholder="No. of floors"
-             />
-           </div>
-
-           {/* Boundary Wall */}
-           <div>
-             <h3 className="text-lg font-bold text-[#000929] mb-4">Is there a boundary wall around the property? <span className="text-red-500">*</span></h3>
-             <div className="flex gap-3">
-               {["Yes", "No"].map(opt => (
-                 <button
-                   key={opt}
-                   type="button"
-                   onClick={() => setFormData({...formData, boundaryWall: opt as "Yes" | "No"})}
-                   className={`px-4 md:px-6 py-2 rounded-full border text-sm font-medium transition-all ${
-                     formData.boundaryWall === opt
-                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                       : `bg-white ${errors.boundaryWall ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
-                   }`}
-                 >
-                   {opt}
-                 </button>
-               ))}
-             </div>
-           </div>
-
-           {/* Open Sides */}
-           <div>
-             <div className="flex items-center gap-2 mb-4">
-               <h3 className="text-lg font-bold text-[#000929]">No. of open sides <span className="text-red-500">*</span></h3>
-               <div className="text-gray-400 cursor-help" title="Number of sides open to road/street">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+           {!(formData.propertyCategory.includes("Agricultural") || formData.propertySubType?.includes("Agricultural")) && (
+             <>
+               <div>
+                 <h3 className="text-lg font-bold text-[#000929] mb-4">Floors Allowed For Construction <span className="text-red-500">*</span></h3>
+                 <input
+                   type="number"
+                   className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.floorsAllowed ? "border-red-500" : "border-gray-300"}`}
+                   value={formData.floorsAllowed}
+                   onChange={e => setFormData({...formData, floorsAllowed: e.target.value})}
+                   placeholder="No. of floors"
+                 />
                </div>
-             </div>
-             <div className="flex gap-3">
-               {["1", "2", "3", "3+"].map(opt => (
-                 <button
-                   key={opt}
-                   type="button"
-                   onClick={() => setFormData({...formData, openSides: opt})}
-                   className={`w-10 h-10 md:w-12 md:h-12 rounded-full border text-sm font-medium flex items-center justify-center transition-all ${
-                     formData.openSides === opt
-                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                       : `bg-white ${errors.openSides ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
-                   }`}
-                 >
-                   {opt}
-                 </button>
-               ))}
-             </div>
-           </div>
 
-           {/* Any Construction */}
-           <div>
-             <div className="flex items-center gap-2 mb-4">
-                <h3 className="text-lg font-bold text-[#000929]">Any construction done on this property? <span className="text-red-500">*</span></h3>
-                <div className="text-gray-400 cursor-help" title="Is there any existing structure?">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+               {/* Boundary Wall */}
+               <div>
+                 <h3 className="text-lg font-bold text-[#000929] mb-4">Is there a boundary wall around the property? <span className="text-red-500">*</span></h3>
+                 <div className="flex gap-3">
+                   {["Yes", "No"].map(opt => (
+                     <button
+                       key={opt}
+                       type="button"
+                       onClick={() => setFormData({...formData, boundaryWall: opt as "Yes" | "No"})}
+                       className={`px-4 md:px-6 py-2 rounded-full border text-sm font-medium transition-all ${
+                         formData.boundaryWall === opt
+                           ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                           : `bg-white ${errors.boundaryWall ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
+                       }`}
+                     >
+                       {opt}
+                     </button>
+                   ))}
+                 </div>
                </div>
-             </div>
-             <div className="flex gap-3">
-               {["Yes", "No"].map(opt => (
-                 <button
-                   key={opt}
-                   type="button"
-                   onClick={() => setFormData({...formData, anyConstruction: opt as "Yes" | "No"})}
-                   className={`px-4 md:px-6 py-2 rounded-full border text-sm font-medium transition-all ${
-                     formData.anyConstruction === opt
-                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                       : `bg-white ${errors.anyConstruction ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
-                   }`}
-                 >
-                   {opt}
-                 </button>
-               ))}
-             </div>
-           </div>
 
-           {/* Possession By */}
-           <div>
-             <h3 className="text-lg font-bold text-[#000929] mb-4">Possession By <span className="text-red-500">*</span></h3>
-             <div className="flex flex-wrap gap-3">
-               {[
-                 "Immediate", 
-                 "Within 3 Months", 
-                 "Within 6 Months", 
-                 ...(formData.possessionBy && !["Immediate", "Within 3 Months", "Within 6 Months", "Select Year +"].includes(formData.possessionBy) ? [formData.possessionBy] : []),
-                 "Select Year +"
-               ].map(opt => (
-                 <button
-                   key={opt}
-                   type="button"
-                   onClick={() => {
-                     if (opt === "Select Year +") {
-                       setPossessionPickerOpen(true);
-                       setFormData({...formData, possessionBy: ""});
-                     } else {
-                       setPossessionPickerOpen(false);
-                       setFormData({...formData, possessionBy: opt});
-                     }
-                   }}
-                   className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-                     formData.possessionBy === opt
-                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                       : `bg-white ${errors.possessionBy ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
-                   }`}
-                 >
-                   {opt}
-                 </button>
-               ))}
-             </div>
-              {possessionPickerOpen && (
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <div className="relative">
-                    <select
-                      value={possessionYear}
-                      onChange={(e) => setPossessionYear(e.target.value)}
-                      className="p-2.5 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent"
-                    >
-                      <option value="">Select Year</option>
-                      {Array.from({length: 7}).map((_, idx) => {
-                        const year = new Date().getFullYear() + idx;
-                        return <option key={year} value={String(year)}>{year}</option>;
-                      })}
-                    </select>
-                  </div>
-                  {possessionYear && (
-                    <div className="flex flex-wrap gap-2">
-                      {MONTHS.map(m => (
-                        <button
-                          key={m}
-                          type="button"
-                          onClick={() => {
-                            setFormData({...formData, possessionBy: `${m} ${possessionYear}`});
-                            setPossessionPickerOpen(false);
-                          }}
-                          className={`px-3 py-2 rounded-full border text-xs font-medium transition-all ${
-                            `${m} ${possessionYear}` === formData.possessionBy
-                              ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                              : "bg-white border-gray-300 text-gray-700 hover:border-gray-400"
-                          }`}
+               {/* Open Sides */}
+               <div>
+                 <div className="flex items-center gap-2 mb-4">
+                   <h3 className="text-lg font-bold text-[#000929]">No. of open sides <span className="text-red-500">*</span></h3>
+                   <div className="text-gray-400 cursor-help" title="Number of sides open to road/street">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                   </div>
+                 </div>
+                 <div className="flex gap-3">
+                   {["1", "2", "3", "3+"].map(opt => (
+                     <button
+                       key={opt}
+                       type="button"
+                       onClick={() => setFormData({...formData, openSides: opt})}
+                       className={`w-10 h-10 md:w-12 md:h-12 rounded-full border text-sm font-medium flex items-center justify-center transition-all ${
+                         formData.openSides === opt
+                           ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                           : `bg-white ${errors.openSides ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
+                       }`}
+                     >
+                       {opt}
+                     </button>
+                   ))}
+                 </div>
+               </div>
+
+               {/* Any Construction */}
+               <div>
+                 <div className="flex items-center gap-2 mb-4">
+                    <h3 className="text-lg font-bold text-[#000929]">Any construction done on this property? <span className="text-red-500">*</span></h3>
+                    <div className="text-gray-400 cursor-help" title="Is there any existing structure?">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                   </div>
+                 </div>
+                 <div className="flex gap-3">
+                   {["Yes", "No"].map(opt => (
+                     <button
+                       key={opt}
+                       type="button"
+                       onClick={() => setFormData({...formData, anyConstruction: opt as "Yes" | "No"})}
+                       className={`px-4 md:px-6 py-2 rounded-full border text-sm font-medium transition-all ${
+                         formData.anyConstruction === opt
+                           ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                           : `bg-white ${errors.anyConstruction ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
+                       }`}
+                     >
+                       {opt}
+                     </button>
+                   ))}
+                 </div>
+               </div>
+
+               {/* Possession By */}
+               <div>
+                 <h3 className="text-lg font-bold text-[#000929] mb-4">Possession By <span className="text-red-500">*</span></h3>
+                 <div className="flex flex-wrap gap-3">
+                   {[
+                     "Immediate", 
+                     "Within 3 Months", 
+                     "Within 6 Months", 
+                     ...(formData.possessionBy && !["Immediate", "Within 3 Months", "Within 6 Months", "Select Year +"].includes(formData.possessionBy) ? [formData.possessionBy] : []),
+                     "Select Year +"
+                   ].map(opt => (
+                     <button
+                       key={opt}
+                       type="button"
+                       onClick={() => {
+                         if (opt === "Select Year +") {
+                           setPossessionPickerOpen(true);
+                           setFormData({...formData, possessionBy: ""});
+                         } else {
+                           setPossessionPickerOpen(false);
+                           setFormData({...formData, possessionBy: opt});
+                         }
+                       }}
+                       className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
+                         formData.possessionBy === opt
+                           ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                           : `bg-white ${errors.possessionBy ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
+                       }`}
+                     >
+                       {opt}
+                     </button>
+                   ))}
+                 </div>
+                  {possessionPickerOpen && (
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <div className="relative">
+                        <select
+                          value={possessionYear}
+                          onChange={(e) => setPossessionYear(e.target.value)}
+                          className="p-2.5 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent"
                         >
-                          {m}
-                        </button>
-                      ))}
+                          <option value="">Select Year</option>
+                          {Array.from({length: 7}).map((_, idx) => {
+                            const year = new Date().getFullYear() + idx;
+                            return <option key={year} value={String(year)}>{year}</option>;
+                          })}
+                        </select>
+                      </div>
+                      {possessionYear && (
+                        <div className="flex flex-wrap gap-2">
+                          {MONTHS.map(m => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => {
+                                setFormData({...formData, possessionBy: `${m} ${possessionYear}`});
+                                setPossessionPickerOpen(false);
+                              }}
+                              className={`px-3 py-2 rounded-full border text-xs font-medium transition-all ${
+                                `${m} ${possessionYear}` === formData.possessionBy
+                                  ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                                  : "bg-white border-gray-300 text-gray-700 hover:border-gray-400"
+                              }`}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
-           </div>
+               </div>
+             </>
+           )}
         </>
       ) : (
         /* Regular Residential / Commercial UI */
@@ -1839,25 +1905,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           </div>
         )}
       </div>
-      {/* Unique Description */}
-      <div>
-        <label className="block text-lg font-bold text-[#000929] mb-4">What makes your property unique</label>
-        <p className="text-sm text-gray-500 mb-2">Share the unique features of your property to attract buyers.</p>
-        <textarea
-          className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 min-h-[150px] ${errors.uniqueDescription ? "border-red-500" : "border-gray-300"}`}
-          placeholder="Describe your property..."
-          value={formData.uniqueDescription}
-          onChange={e => {
-            if (e.target.value.length <= 5000) {
-              setFormData({...formData, uniqueDescription: e.target.value});
-            }
-          }}
-        />
-        <div className="flex justify-between text-xs text-gray-500 mt-1">
-          <span>Min 30 characters</span>
-          <span>{formData.uniqueDescription?.length || 0}/5000</span>
-        </div>
-      </div>
+
 
       <div>
         <h3 className="text-lg font-bold text-[#000929] mb-4">Pricing Details</h3>
@@ -2222,6 +2270,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         type: formData.type,
         propertyType: formData.propertyType,
         propertyCategory: formData.propertyCategory,
+        propertySubType: formData.propertySubType,
         balconies: formData.balconies,
         otherRooms: formData.otherRooms,
         coveredParking: formData.coveredParking,
@@ -2320,6 +2369,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           availableFrom: "",
           preferredTenants: [],
           userType: "Owner",
+          propertySubType: "",
         });
         setImages([]);
         setExistingImages([]);
