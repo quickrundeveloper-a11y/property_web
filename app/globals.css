@@ -48,10 +48,7 @@ body {
   font-size: 0.875rem;
   color: #4b5563;
   border-top: 1px solid #f3f4f6;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  line-height: 1.5;
+  transition: all 0.2s;
 }
 
 .pac-item:first-child {
@@ -59,31 +56,84 @@ body {
 }
 
 .pac-item:hover {
-  background-color: #eff6ff; /* blue-50 */
-}
-
-.pac-item-selected {
-  background-color: #eff6ff; /* blue-50 */
+  background-color: #f8fafc;
 }
 
 .pac-item-query {
   font-size: 0.875rem;
-  color: #111827; /* gray-900 */
+  color: #111827;
   font-weight: 500;
-  padding-right: 0.25rem;
 }
 
 .pac-icon {
-  margin-top: 0;
-  margin-right: 0;
+  display: none;
 }
 
-/* Hide the default marker icon if you want a cleaner look, or style it */
-.pac-icon-marker {
-  filter: grayscale(100%) opacity(0.6);
+/* Range Slider Styles */
+.range-slider-container {
+  position: relative;
+  width: 100%;
+  height: 24px;
+  display: flex;
+  align-items: center;
 }
 
-/* Style the 'powered by Google' logo container */
-.pac-logo:after {
-  margin: 0.5rem;
+.range-input {
+  position: absolute;
+  width: 100%;
+  height: 5px;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  background: none;
+  pointer-events: none;
+  -webkit-appearance: none;
+  z-index: 2;
+}
+
+.range-input::-webkit-slider-thumb {
+  height: 24px;
+  width: 24px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: #0066FF;
+  pointer-events: auto;
+  -webkit-appearance: none;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.range-input::-moz-range-thumb {
+  height: 24px;
+  width: 24px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #0066FF;
+  pointer-events: auto;
+  -moz-appearance: none;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.slider-track {
+  position: absolute;
+  width: 100%;
+  height: 6px;
+  background-color: #E2E8F0;
+  border-radius: 3px;
+  z-index: 1;
+}
+
+.slider-range {
+  position: absolute;
+  height: 6px;
+  background-color: #0066FF;
+  border-radius: 3px;
+  z-index: 1;
 }

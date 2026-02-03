@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { collection, query, orderBy, getDocs, where, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { formatPrice } from "@/lib/utils";
 import { Property } from "@/lib/types";
 import Image from "next/image";
 
@@ -145,14 +146,6 @@ function PropertySearchContent() {
     } catch (error) {
       console.error("Error toggling favorite:", error);
     }
-  };
-
-  const formatPrice = (price: number | string) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(Number(price) || 0);
   };
 
   const getPriceSuffix = (p: Property) => {
@@ -349,7 +342,7 @@ function PropertySearchContent() {
                   <div className="p-4">
                     <div className="mb-3">
                   <p className="text-blue-600 font-bold text-lg">
-                        {formatPrice(property.price || 2500000)}
+                        {formatPrice(property.price)}
                         <span className="text-gray-400 text-sm font-normal">
                           {getPriceSuffix(property)}
                         </span>

@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { collection, deleteDoc, doc, getDoc, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { formatPrice } from "@/lib/utils";
 import { Bed, Bath, Heart, Square } from "lucide-react";
 
 interface Property {
@@ -40,12 +41,6 @@ export default function MyProperties() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { user } = useAuth();
-
-  const formatPrice = (property: Property) => {
-    const price = property.price || property.rent || property.cost || 25000;
-    const numPrice = typeof price === 'string' ? parseInt(price.replace(/[^\d]/g, '')) : Number(price);
-    return isNaN(numPrice) ? 25000 : numPrice;
-  };
 
   const getPriceSuffix = (property: Property) => {
     const unit = String(property.priceUnit || '').toLowerCase();
@@ -206,7 +201,7 @@ export default function MyProperties() {
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h3 className="font-bold text-[#0066FF] text-lg">
-                        ₹{formatPrice(property).toLocaleString("en-IN")}
+                        {formatPrice(property.price || property.rent || property.cost)}
                         <span className="text-gray-400 text-xs font-normal ml-1">{getPriceSuffix(property)}</span>
                       </h3>
                       <h3 className="font-bold text-[#000929] text-base mt-1 truncate max-w-[160px]">

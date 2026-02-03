@@ -322,18 +322,6 @@ export default function ProfilePage() {
                   </form>
                 </div>
               )}
-
-              <div className="pt-2">
-                <p className="text-sm text-gray-600">
-                  To delete your account, <button className="text-blue-600 hover:underline font-medium">click here</button>
-                </p>
-              </div>
-              
-              <div>
-                 <p className="text-xs text-gray-500">
-                  By clicking you agree to <a href="#" className="text-blue-600 hover:underline font-medium">Terms and Conditions</a>
-                </p>
-              </div>
             </div>
           </div>
         </div>

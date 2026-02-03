@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { doc, getDoc, runTransaction, serverTimestamp, collection, query, limit, getDocs } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, runTransaction, serverTimestamp, collection, query, limit, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { formatPrice } from "@/lib/utils";
 import { useChat } from "@/app/context/ChatContext";
 import { getGuestId } from "@/utils/guestId";
 import Header from "@/app/components/header";
@@ -25,7 +26,6 @@ import {
   ImageIcon,
   Eye,
   LandPlot,
-  ChevronRight,
   ArrowRight,
   Calendar
 } from "lucide-react";
@@ -69,65 +69,66 @@ export default function PropertyDetails() {
       if (!params.id) return;
       const propertyId = Array.isArray(params.id) ? params.id[0] : params.id;
       
-      let userId = user?.uid;
-      let isGuest = false;
-
-      // Treat anonymous users as guests for view counting
-      if (!user || user.isAnonymous) {
-        userId = getGuestId() || undefined;
-        isGuest = true;
+      // Client-side view counting with throttling
+      const lastViewKey = `last_view_${propertyId}`;
+      const lastViewTime = localStorage.getItem(lastViewKey);
+      const now = Date.now();
+      
+      // 24 hour cooldown (86400000 ms)
+      if (lastViewTime && (now - parseInt(lastViewTime)) < 86400000) {
+        return;
       }
 
-      if (!userId) return;
-
       try {
-        await fetch('/api/views/record', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            propertyId,
-            userId,
-            isGuest,
-          }),
+        const propertyRef = doc(db, "property_All", "main", "properties", propertyId);
+        
+        await runTransaction(db, async (transaction) => {
+          const propDoc = await transaction.get(propertyRef);
+          if (!propDoc.exists()) return;
+
+          const currentViews = propDoc.data().viewCount || 0;
+          transaction.update(propertyRef, {
+            viewCount: currentViews + 1
+          });
         });
+
+        localStorage.setItem(lastViewKey, now.toString());
       } catch (error) {
-        console.error('Failed to record view:', error);
+        console.error('Failed to update view count:', error);
       }
     };
 
     if (!authLoading) {
       recordView();
     }
-  }, [params.id, user, authLoading]);
+  }, [params.id, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const fetchProperty = async () => {
-      if (!params.id) return;
+    if (!params.id) return;
 
-      try {
-        // Fetch from Firebase
-        const docRef = doc(db, "property_All", "main", "properties", params.id as string);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const propertyData = { 
-            id: docSnap.id, 
-            ...data,
-            size: data.area || data.size || "0"
-          } as Property;
-          setProperty(propertyData);
-        } else {
-          console.log("No such property!");
-        }
-      } catch (error) {
-        console.error("Error fetching property:", error);
-      } finally {
-        setLoading(false);
+    // Fetch from Firebase with real-time updates
+    const docRef = doc(db, "property_All", "main", "properties", params.id as string);
+    
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const propertyData = { 
+          id: docSnap.id, 
+          ...data,
+          size: data.area || data.size || "0"
+        } as Property;
+        setProperty(propertyData);
+      } else {
+        console.log("No such property!");
+        setProperty(null);
       }
-    };
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching property:", error);
+      setLoading(false);
+    });
 
-    fetchProperty();
+    return () => unsubscribe();
   }, [params.id]);
 
   if (loading) {
@@ -243,14 +244,7 @@ export default function PropertyDetails() {
       {/* MAIN CONTAINER */}
       <div className="max-w-7xl mx-auto px-4 md:px-8">
         
-        {/* Breadcrumbs */}
-        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 font-medium mb-8">
-           <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => router.push('/home')}>Home</span>
-           <ChevronRight className="w-4 h-4 text-slate-400" />
-           <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => router.push('/home')}>Properties</span>
-           <ChevronRight className="w-4 h-4 text-slate-400" />
-           <span className="text-slate-900 truncate max-w-[200px]">{property.title}</span>
-        </div>
+
 
         {/* TOP SPLIT SECTION: Image Left, Data Right */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 mb-16">
@@ -306,7 +300,7 @@ export default function PropertyDetails() {
               <div className="mb-8">
                  <div className="flex items-baseline gap-2 mb-2">
                     <h2 className="text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
-                       ₹{property.price?.toLocaleString('en-IN')} 
+                       {formatPrice(property.price)}
                     </h2>
                     {(property.type === 'rent' || property.type === 'pg') && <span className="text-xl text-slate-500 font-medium">/month</span>}
                  </div>

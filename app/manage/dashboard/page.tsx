@@ -7,6 +7,7 @@ import { collection, getDocs, doc, deleteDoc, query, where } from "firebase/fire
 import { useRouter } from "next/navigation";
 import { Bed, Bath, Square, Edit, Trash2, Eye } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { formatPrice } from "@/lib/utils";
 
 interface Property {
   id: string;
@@ -141,7 +142,7 @@ export default function Dashboard() {
 
                 <div className="flex items-center justify-between pt-3 border-t border-gray-50">
                   <span className="font-bold text-blue-600">
-                    ₹{property.price?.toLocaleString() || 0}
+                    {formatPrice(property.price)}
                     <span className="text-xs font-normal text-gray-400 ml-1">
                       {(() => {
                         const unit = String(property.priceUnit || '').toLowerCase();

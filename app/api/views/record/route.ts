@@ -16,27 +16,43 @@ export async function POST(request: Request) {
 
     await adminDb.runTransaction(async (transaction) => {
       const viewDoc = await transaction.get(viewRef);
+      const propertyDoc = await transaction.get(propertyRef);
+
+      if (!propertyDoc.exists) return;
+
+      const currentViewCount = propertyDoc.data()?.viewCount || 0;
 
       if (viewDoc.exists) {
-        if (isGuest) {
-          // Check if 24 hours have passed
-          const data = viewDoc.data();
-          if (data && data.createdAt) {
-            const lastViewed = data.createdAt.toDate();
-            const now = new Date();
-            const diffHours = (now.getTime() - lastViewed.getTime()) / (1000 * 60 * 60);
+        // Check if enough time has passed (e.g., 1 minute for testing/better UX)
+        const data = viewDoc.data();
+        let shouldIncrement = false;
 
-            if (diffHours >= 24) {
-              transaction.update(viewRef, {
-                createdAt: FieldValue.serverTimestamp(),
-              });
-              transaction.update(propertyRef, {
-                viewCount: FieldValue.increment(1),
-              });
-            }
+        if (data && data.createdAt) {
+          const lastViewed = data.createdAt.toDate();
+          const now = new Date();
+          const diffMinutes = (now.getTime() - lastViewed.getTime()) / (1000 * 60);
+
+          // Allow increment if 1 minute has passed
+          if (diffMinutes >= 1) {
+            shouldIncrement = true;
           }
+        } else {
+          shouldIncrement = true;
         }
-        // Logged-in users: Do nothing (count only once)
+
+        // FIX: If viewCount is 0 (stuck), allow increment regardless of time
+        if (currentViewCount === 0) {
+          shouldIncrement = true;
+        }
+
+        if (shouldIncrement) {
+          transaction.update(viewRef, {
+            createdAt: FieldValue.serverTimestamp(),
+          });
+          transaction.update(propertyRef, {
+            viewCount: FieldValue.increment(1),
+          });
+        }
       } else {
         // New view
         transaction.set(viewRef, {

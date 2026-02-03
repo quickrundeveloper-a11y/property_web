@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Property } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { formatPrice } from "@/lib/utils";
 import { Heart, MapPin, Bed, Bath, Square } from "lucide-react";
 
 export default function FavoritesPage() {
@@ -92,7 +93,7 @@ export default function FavoritesPage() {
                   <div className="flex justify-between items-start mb-2">
                      <h3 className="font-bold text-slate-900 line-clamp-1">{property.title}</h3>
                      <span className="font-bold text-blue-600">
-                       ₹{property.price?.toLocaleString() || property.rent?.toLocaleString()}
+                       {formatPrice(property.price || property.rent)}
                      </span>
                   </div>
                   <p className="text-slate-500 text-sm mb-4 line-clamp-1 flex items-center gap-1">

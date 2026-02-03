@@ -1,207 +1,164 @@
-# Flutter App Replication Guide: Add Property Feature
+# Flutter Property App Replication Guide
 
-This guide documents the logic, structure, and database schema of the "Add Property" feature from the Next.js web application to facilitate replication in a Flutter app.
+This guide details the logic, data structure, and implementation steps to replicate the "Add Property" feature from the existing Next.js web application into a Flutter mobile app.
 
-## 1. Overview
-The "Add Property" feature is a multi-step wizard that allows users to list properties for sale or rent. It handles data collection, validation, media uploads (images/video), and saves the final data to a Firestore database.
+## 1. Data Model (`Property` Class)
 
-## 2. Architecture & State Management
+Replicate the `Property` interface from `lib/types.ts` as a Dart class.
 
-### 2.1. Core State (`formData`)
-The app maintains a central state object that accumulates data across all steps.
-
-**Initial State:**
 ```dart
-// Flutter equivalent model
-class PropertyFormData {
-  String type = 'sell'; // 'sell' | 'rent' | 'pg'
-  String propertyType = 'Residential'; // 'Residential' | 'Commercial' | 'Land/Plot'
-  String propertyCategory = 'Flat/Apartment'; // Dynamic based on propertyType
-  
-  // Location
-  String location = ''; // Full address string
-  String city = '';
-  String locality = '';
-  String subLocality = '';
-  String landmark = '';
+class Property {
+  String? id;
+  String? title;
+  String? name;
+  String? location; // From Google Places
+  String? address;
+  dynamic price; // num or String
+  dynamic rent;
+  dynamic cost;
+  List<String>? images;
+  String? image; // Cover image
+  int? bedrooms;
+  int? bathrooms;
+  dynamic area; // num or String
+  String? units;
+  String? type; // 'sell', 'rent'
+  String? propertyType; // 'residential', 'commercial', 'plot', etc.
+  String? status; // 'Active', etc.
+  String? priceUnit; // 'Lakh', 'Cr', 'K'
+  String? description;
+  String? phone;
+  String? contactName;
+  String? userId; // Firebase Auth UID
+  String? availabilityStatus; // 'Ready to move', 'Under construction'
+  String? ageOfProperty;
+  String? possessionBy; // Date string
+  String? ownership; // 'Freehold', etc.
+  String? facing;
+  List<String>? overlooking;
+  List<String>? waterSource;
+  String? videoUrl;
+  String? floorPlan;
+  List<String>? amenities;
   double? lat;
   double? lng;
+  // ... add all other fields from lib/types.ts
   
-  // Property Details
-  String title = ''; // Generated or user input
-  String description = '';
-  String uniqueDescription = '';
-  
-  // Specs
-  int bedrooms = 1;
-  int bathrooms = 1;
-  int balconies = 0;
-  String area = '';
-  String units = 'sq.ft'; // Default unit
-  String furnishingStatus = 'Unfurnished';
-  String possessionStatus = 'Ready to Move';
-  String floorNo = '';
-  String totalFloors = '';
-  
-  // Pricing
-  double price = 0;
-  String priceUnit = 'Lakh'; // 'Crore' | 'Lakh' | 'Thousand'
-  bool allInclusivePrice = false;
-  bool taxExcluded = false;
-  bool priceNegotiable = false;
-  
-  // Media
-  List<File> images = []; // Local files before upload
-  List<String> imageUrls = []; // URLs after upload
-  File? video;
-  
-  // Contact
-  String ownerName = '';
-  String email = '';
-  String phone = '';
-  String userType = 'Owner'; // 'Owner' | 'Agent' | 'Builder'
-  
-  // Arrays
-  List<String> features = []; // Amenities
+  // Constructor and fromMap/toMap methods for Firestore
 }
 ```
 
-### 2.2. Stepper Logic
-The form is divided into 5 steps. Navigation is controlled by a `currentStep` index (0-4).
-*   **Validation**: Each step must be validated before proceeding to the next.
-*   **Progress**: A progress bar or stepper UI indicates the current stage.
+## 2. Dependencies (pubspec.yaml)
 
-## 3. Step-by-Step Implementation Details
+*   `firebase_core`, `cloud_firestore`, `firebase_auth`, `firebase_storage`: For backend services.
+*   `google_maps_flutter`: For map visualization (if needed).
+*   `flutter_google_places_sdk` or `google_places_flutter`: For Autocomplete logic.
+*   `image_picker`: For selecting photos/videos.
+*   `video_player` / `chewie`: For video previews.
+*   `provider` or `flutter_bloc`: For state management (Stepper logic).
+*   `geolocator`: For current location (optional).
 
-### Step 1: Basic Information
-**Fields:**
-*   **I want to:** Toggle buttons [Sell, Rent, PG].
-*   **Property Type:** Dropdown/Cards [Residential, Commercial, Land/Plot].
-*   **Property Category:** Dynamic dropdown based on 'Property Type'.
-    *   *Residential*: Flat/Apartment, Independent House/Villa, Independent/Builder Floor, Serviced Apartment, 1RK/Studio Apartment, Farmhouse.
-    *   *Commercial*: Office, Retail Shop, Showroom, Warehouse/Godown, Industrial Building, Industrial Shed, Co-working Space.
-    *   *Land/Plot*: Residential Land/Plot, Commercial Land/Plot, Industrial Land/Plot, Agricultural Land, Farm Land.
+## 3. Form Logic & Structure (Stepper)
 
-**Logic:**
-*   Reset `propertyCategory` when `propertyType` changes.
-*   Auto-select first category.
+The form is divided into 5 steps. Implement a `Stepper` widget or a custom page controller.
+
+### Step 1: Basic Details
+*   **Fields:**
+    *   **I want to:** Toggle buttons (`Sell` / `Rent`).
+    *   **Property Category:** Chips/Buttons (`Residential`, `Commercial`, `Land/Plot`).
+    *   **Property Type:** Dynamic chips based on category (e.g., if Residential -> `Flat/Apartment`, `House/Villa`).
+*   **Logic:**
+    *   Selecting a category resets the property type.
+    *   Selecting "Land/Plot" changes subsequent validation rules (hides bedrooms/bathrooms).
 
 ### Step 2: Location Details
-**Fields:**
-*   **City:** Text Input.
-*   **Locality:** Text Input.
-*   **Sub-Locality:** Text Input (Optional).
-*   **Address/Landmark:** Text Input.
-*   **Map Integration:**
-    *   Display Google Maps/OpenStreetMap.
-    *   Allow user to drag a marker to pinpoint exact location.
-    *   Reverse geocoding (optional) to auto-fill address fields based on pin drop.
-    *   **Store:** `lat` and `lng`.
+*   **Fields:**
+    *   **City / Location:** Text field with **Google Places Autocomplete**.
+    *   **Project / Society:** Text field.
+    *   **Locality / Area:** Text field.
+*   **Logic:**
+    *   Use `flutter_google_places_sdk` to fetch place predictions.
+    *   On selection, extract `lat`, `lng`, and `formatted_address`.
+    *   Auto-fill the location text field.
 
-**Validation:** City and Locality are mandatory.
+### Step 3: Property Features
+*   **Fields (Dynamic):**
+    *   **Bedrooms:** Number selector (1, 2, 3, 4, 5+). *Hidden for Plots.*
+    *   **Bathrooms:** Number selector. *Hidden for Plots.*
+    *   **Balconies:** Number selector. *Hidden for Plots.*
+    *   **Floor No / Total Floors:** Dropdowns/Text fields.
+    *   **Furnished Status:** Chips (`Furnished`, `Semi-Furnished`, `Unfurnished`).
+    *   **Covered/Open Parking:** Number selectors.
+    *   **Area Details:**
+        *   `Carpet Area` / `Super Area` / `Plot Area` (depending on type).
+        *   `Unit` dropdown (Sq-ft, Sq-yrd, etc.).
+    *   **Willing to rent out to:** (Only if `type == 'rent'`) Multi-select chips (`Family`, `Single men`, etc.).
+    *   **Availability:** Chips (`Ready to move`, `Under construction`).
+        *   If `Ready to move` -> Show `Age of Property`.
+        *   If `Under construction` -> Show `Possession By` date picker.
+    *   **Description:** Multi-line text area.
 
-### Step 3: Property Features & Amenities
-*Conditional UI:* If `propertyType` is "Land/Plot", hide Bedroom/Bathroom/Furnishing fields.
+### Step 4: Photos & Media
+*   **Fields:**
+    *   **Photos:** Multi-image picker. Drag-and-drop UI (on web) or Grid UI (on mobile).
+        *   **Cover Image:** Allow user to tap an image to set it as "Main/Cover".
+    *   **Video:** Single video picker.
+    *   **Floor Plan:** Single image picker.
+*   **Logic:**
+    *   Store local file paths in state.
+    *   Upload to Firebase Storage only on final submission (or progressively).
+    *   Show thumbnails with "Remove" buttons.
 
-**Fields:**
-*   **Area:** Number Input + Unit Dropdown.
-    *   *Units:* sq.ft, sq.yards, sq.m, acres, marla, cents, bigha, kottah, kanal, grounds, ares, biswa, guntha, aankadam, hectares, rood, chataks, perch.
-*   **Bedrooms:** Counter/Chip selection (1, 2, 3, 4, 5+).
-*   **Bathrooms:** Counter/Chip selection.
-*   **Balconies:** Counter/Chip selection.
-*   **Furnishing Status:** [Furnished, Semi-Furnished, Unfurnished].
-*   **Floors:** Two inputs (Property on Floor X of Total Floors Y).
-*   **Age of Property:** [New Construction, 0-1 years, 1-5 years, 5-10 years, 10+ years].
-*   **Amenities:** Multi-select grid (e.g., Parking, Lift, Power Backup, Gym, Pool, Security, Clubhouse).
+### Step 5: Pricing & Amenities
+*   **Fields:**
+    *   **Ownership:** Chips (`Freehold`, `Leasehold`, etc.).
+    *   **Price / Expected Rent:** Numeric input.
+    *   **Price Unit:** Dropdown (`Lakh`, `Cr`, `Thousand`).
+    *   **Price per sq.ft:** Auto-calculated (Display only).
+    *   **Additional Charges:** Checkboxes (`Tax Excluded`, `Price Negotiable`, etc.).
+    *   **Amenities:** Multi-select grid (e.g., `Lift`, `Gym`, `Pool`, `Security`).
+    *   **Additional Features:**
+        *   `Facing`: Dropdown (`East`, `West`, etc.).
+        *   `Overlooking`: Multi-select (`Park`, `Main Road`).
+        *   `Water Source`: Multi-select.
 
-**Logic:**
-*   Maintain a list of selected amenities strings in `formData.features`.
+## 4. Submission Logic (Firebase)
 
-### Step 4: Media Upload
-**Fields:**
-*   **Photos:** Multi-image picker.
-    *   Allow reordering (drag & drop).
-    *   Mark one as "Cover Image".
-    *   Delete option.
-*   **Video:** Single video picker.
+1.  **Validation:** Ensure all required fields (marked with `*` in UI) are filled before enabling the "Post Property" button.
+2.  **Image Upload:**
+    *   Iterate through selected image files.
+    *   Upload each to `property-images/{timestamp}_{filename}`.
+    *   Get download URLs.
+3.  **Video/FloorPlan Upload:**
+    *   Upload to `property-videos/` or `property-floorplans/`.
+    *   Get download URLs.
+4.  **Firestore Document:**
+    *   Collection: `property_All/main/properties` (or your specific path).
+    *   Create a Map<String, dynamic> matching the `Property` model.
+    *   Add metadata: `createdAt: FieldValue.serverTimestamp()`, `status: 'Active'`.
+    *   `set()` or `add()` the document.
+5.  **User Profile Update (Optional):**
+    *   If the user's phone number is collected in the form (or if it's missing from profile), update `property_All/main/users/{uid}`.
 
-**Implementation Note:**
-*   Upload files to Firebase Storage (or equivalent).
-*   Get download URLs.
-*   **Critical:** Do not upload immediately on selection? Or upload and store temp URLs? *Recommendation: Upload on final submit or background upload with progress indicators.*
+## 5. Key UI/UX Components
 
-### Step 5: Pricing & Additional Details
-**Fields:**
-*   **Ownership Type:** [Freehold, Leasehold, Co-operative Society, Power of Attorney].
-*   **Price:** Number Input.
-*   **Price Unit:** [Crore, Lakh, Thousand].
-*   **Checkboxes:** All Inclusive Price, Tax Excluded, Price Negotiable.
-*   **Description:** Text Area (Auto-generated suggestion button based on selected features).
-*   **Contact Info:** Name, Phone, Email (Pre-filled from User Profile if available).
+*   **Progress Bar:** Top indicator showing Step 1/5 to Step 5/5.
+*   **Navigation:** "Back" and "Next" buttons. "Next" should be disabled if current step is invalid.
+*   **Selection Chips:** Use `ChoiceChip` or `FilterChip` for single/multi-select options.
+*   **Autocomplete:** Use a `TypeAheadField` or similar for Google Places.
 
-## 4. Database Schema (Firestore)
+## 6. Security Rules (Firestore)
 
-**Collection:** `properties`
+Ensure your Firestore rules allow:
+*   **Read:** Public (or authenticated only, depending on app logic).
+*   **Write:** Authenticated users (`request.auth != null`).
+*   **Update/Delete:** Only the owner (`request.auth.uid == resource.data.userId`).
 
-**Document Structure:**
-```json
-{
-  "title": "String (e.g., '2 BHK Flat in Andheri West')",
-  "location": "String (Combined address)",
-  "lat": "Number (Geopoint Latitude)",
-  "lng": "Number (Geopoint Longitude)",
-  "price": "Number (Raw numeric value)",
-  "priceUnit": "String ('Lakh' | 'Crore')",
-  "allInclusivePrice": "Boolean",
-  "taxExcluded": "Boolean",
-  "priceNegotiable": "Boolean",
-  "ownership": "String",
-  
-  "description": "String (Full description)",
-  "uniqueDescription": "String (Short summary/catchy phrase)",
-  
-  "bedrooms": "Number",
-  "bathrooms": "Number",
-  "balconies": "Number",
-  
-  "area": "String (Numeric string)",
-  "units": "String (Unit type)",
-  
-  "features": ["Array of Strings (Amenities)"],
-  
-  "images": ["Array of Strings (URLs)"],
-  "video": "String (URL) | null",
-  
-  "type": "String ('sell' | 'rent')",
-  "propertyType": "String",
-  "propertyCategory": "String",
-  
-  "OwnerName": "String",
-  "phone": "String",
-  "email": "String",
-  "sellerId": "String (Reference to User ID)",
-  "userType": "String",
-  
-  "status": "String ('active' | 'pending' | 'sold')",
-  "createdAt": "Timestamp",
-  "updatedAt": "Timestamp"
-}
-```
+## 7. Comparison with Web Code
 
-## 5. Key Business Logic Rules
-1.  **Conditional Validation:**
-    *   If `propertyType` == 'Land/Plot', do not validate bedrooms/bathrooms.
-    *   Price must be greater than 0.
-    *   Phone number must be valid (10 digits).
-2.  **Title Generation:**
-    *   Frontend often auto-generates a default title like "{BHK} {Category} for {Type} in {Locality}" if the user doesn't provide one.
-3.  **Data Formatting:**
-    *   Ensure numeric fields (price, lat, lng) are stored as Numbers, not Strings, for querying/sorting.
-
-## 6. Flutter Dependencies Recommended
-*   `cloud_firestore`: For database interactions.
-*   `firebase_storage`: For media uploads.
-*   `image_picker`: For selecting photos/videos.
-*   `google_maps_flutter`: For the map step.
-*   `geolocator` & `geocoding`: For current location and address resolution.
-*   `provider` or `flutter_bloc`: For managing the multi-step form state.
+*   **Web:** Uses `useRef` for Google Maps API.
+*   **Flutter:** Use `flutter_google_places_sdk` plugin; no direct JS API calls.
+*   **Web:** Uses standard HTML `<input type="file">`.
+*   **Flutter:** Use `image_picker` package.
+*   **Web:** `router.push('/home')` on success.
+*   **Flutter:** `Navigator.pop(context)` or `Navigator.pushReplacementNamed(...)`.
