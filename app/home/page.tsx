@@ -909,7 +909,12 @@ function HomeContentInner() {
                             {[{label: 'Buy', value: 'sell'}, {label: 'Rent', value: 'rent'}, {label: 'PG / Co-living', value: 'pg'}].map((opt) => (
                               <button
                                 key={opt.value}
-                                onClick={() => setTempFilters(prev => ({ ...prev, lookingTo: opt.value as any }))}
+                                onClick={() => setTempFilters(prev => ({ 
+                                  ...prev, 
+                                  lookingTo: opt.value as any,
+                                  // Force residential if PG is selected
+                                  propertyCategoryType: opt.value === 'pg' ? 'residential' : prev.propertyCategoryType
+                                }))}
                                 className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${
                                   tempFilters.lookingTo === opt.value
                                     ? "bg-white text-[#0066FF] shadow-sm font-bold"
@@ -928,7 +933,9 @@ function HomeContentInner() {
                             <Building2 className="w-4 h-4 text-gray-500" /> Property Type
                           </label>
                           <div className="flex bg-gray-50 p-1 rounded-xl">
-                            {['residential', 'commercial'].map((type) => (
+                            {['residential', 'commercial']
+                              .filter(type => !(tempFilters.lookingTo === 'pg' && type === 'commercial'))
+                              .map((type) => (
                               <button
                                 key={type}
                                 onClick={() => setTempFilters(prev => ({ ...prev, propertyCategoryType: type as any }))}
