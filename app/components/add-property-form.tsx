@@ -533,7 +533,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
   };
 
   const handleNext = () => {
-    if (activeStep < 5) {
+    if (activeStep < 6) {
       if (!validateStep(activeStep)) {
         setWarning("Please fill all mandatory fields marked with *");
         return;
@@ -1915,11 +1915,18 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
              <div className="relative">
                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
                <input
-                 type="number"
+                 type="text"
+                 inputMode="numeric"
+                 pattern="[0-9]*"
                  required
                  className={`w-full pl-8 p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.price ? "border-red-500" : "border-gray-300"}`}
                  value={formData.price}
-                 onChange={e => setFormData({...formData, price: e.target.value})}
+                 onChange={e => {
+                   const value = e.target.value;
+                   if (value === '' || /^\d+$/.test(value)) {
+                     setFormData({...formData, price: value});
+                   }
+                 }}
                  placeholder="Enter amount"
                />
              </div>
@@ -2105,6 +2112,11 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent accidental submission from earlier steps
+    if (activeStep < 6) {
+      return;
+    }
+
     if (!validateStep(activeStep)) {
       setWarning("Please fill all mandatory fields marked with *");
       const errorElement = document.querySelector('.border-red-500');
@@ -2416,8 +2428,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           </button>
         )}
         
-        {activeStep < 5 ? (
+        {activeStep < 6 ? (
           <button
+            key="btn-next"
             type="button"
             onClick={handleNext}
             className="ml-auto px-8 py-2.5 rounded-lg bg-[#0066FF] hover:bg-blue-700 text-white font-medium transition-colors shadow-sm shadow-blue-200"
@@ -2426,6 +2439,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           </button>
         ) : (
           <button
+            key="btn-submit"
             type="submit"
             disabled={loading}
             className="ml-auto px-8 py-2.5 rounded-lg bg-[#0066FF] hover:bg-blue-700 text-white font-medium transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-blue-200"

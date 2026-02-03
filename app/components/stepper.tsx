@@ -7,6 +7,7 @@ export const steps = [
   { id: 3, label: "Property Profile" },
   { id: 4, label: "Photos & Videos" },
   { id: 5, label: "Pricing & Ownership" },
+  { id: 6, label: "Preview & Publish" },
 ];
 
 export function Stepper({ steps, currentStep, onStepClick, maxStep }: { steps: { id: number; label: string }[]; currentStep: number; onStepClick: (step: number) => void; maxStep?: number }) {

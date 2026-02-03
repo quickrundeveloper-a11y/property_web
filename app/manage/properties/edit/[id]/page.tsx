@@ -69,10 +69,10 @@ export default function EditPropertyPage() {
             <div className="flex-1 bg-gray-200 rounded-full h-1.5">
               <div 
                 className="bg-[#0085FF] h-1.5 rounded-full transition-all duration-300" 
-                style={{ width: `${(currentStep / 5) * 100}%` }} 
+                style={{ width: `${(currentStep / 6) * 100}%` }} 
               ></div>
             </div>
-            <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Step {currentStep}/5</span>
+            <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Step {currentStep}/6</span>
           </div>
         </div>
       </div>
@@ -87,7 +87,7 @@ export default function EditPropertyPage() {
                   steps={steps} 
                   currentStep={currentStep} 
                   onStepClick={setCurrentStep}
-                  maxStep={5}
+                  maxStep={6}
                 />
                 <PropertyScoreCard score={propertyScore} />
               </div>
