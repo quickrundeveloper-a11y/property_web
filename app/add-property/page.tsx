@@ -68,10 +68,10 @@ export default function AddPropertyPage() {
                   <div className="flex-1 bg-gray-200 rounded-full h-1.5">
                     <div 
                       className="bg-[#0085FF] h-1.5 rounded-full transition-all duration-300" 
-                      style={{ width: `${(currentStep / 5) * 100}%` }} // Assuming 5 steps based on form
+                      style={{ width: `${(currentStep / 6) * 100}%` }}
                     ></div>
                   </div>
-                  <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Step {currentStep}/5</span>
+                  <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Step {currentStep}/6</span>
                 </div>
               </div>
               <h1 className="text-2xl font-bold text-[#000929] hidden md:block">Add Property</h1>

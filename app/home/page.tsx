@@ -182,6 +182,26 @@ function HomeContentInner() {
   const [mapsReady, setMapsReady] = useState(false);
   const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
   const initializedInputRef = useRef<HTMLInputElement | null>(null);
+  const filterContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const body = document.body;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (showFilters) {
+      body.style.overflow = "hidden";
+      if (scrollbarWidth > 0) {
+        body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+    } else {
+      body.style.overflow = "";
+      body.style.paddingRight = "";
+    }
+    return () => {
+      body.style.overflow = "";
+      body.style.paddingRight = "";
+    };
+  }, [showFilters]);
 
   // Load Google Maps Script
   useEffect(() => {
@@ -855,7 +875,14 @@ function HomeContentInner() {
 
                 {/* Centered Filter Modal */}
                 {showFilters && (
-                  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                  <div 
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+                    onWheel={(e) => {
+                      if (filterContentRef.current && !filterContentRef.current.contains(e.target as Node)) {
+                         filterContentRef.current.scrollTop += e.deltaY;
+                      }
+                    }}
+                  >
                     {/* Backdrop */}
                     <div 
                       className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
@@ -880,7 +907,7 @@ function HomeContentInner() {
                       </div>
 
                       {/* Scrollable Content */}
-                      <div className="p-6 overflow-y-auto custom-scrollbar space-y-8">
+                      <div ref={filterContentRef} className="p-6 overflow-y-auto custom-scrollbar space-y-8">
                         
                         {/* Location with Google Places */}
                         <div className="space-y-3">

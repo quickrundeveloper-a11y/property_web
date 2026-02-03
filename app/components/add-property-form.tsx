@@ -531,7 +531,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
   };
 
   const handleNext = () => {
-    if (activeStep < 5) {
+    if (activeStep < 6) {
       if (!validateStep(activeStep)) {
         setWarning("Please fill all mandatory fields marked with *");
         return;
@@ -542,7 +542,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
       setInternalStep(nextStep);
       if (onStepChange) onStepChange(nextStep);
       
-      if (onScoreChange) onScoreChange(Math.min(100, nextStep * 20));
+      if (onScoreChange) onScoreChange(Math.min(100, nextStep * 16.6));
       window.scrollTo(0, 0);
     }
   };
@@ -1995,6 +1995,65 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
     </div>
   );
 
+  const renderStep6 = () => (
+    <div className="space-y-6 animate-fadeIn">
+      <h3 className="text-lg font-bold text-[#000929] mb-4">Preview & Publish</h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Preview Summary */}
+        <div className="space-y-4">
+          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+             <h4 className="font-semibold text-gray-900 mb-2">Property Summary</h4>
+             <div className="space-y-2 text-sm text-gray-700">
+               <p><span className="font-medium text-gray-500">Title:</span> {formData.title || '-'}</p>
+               <p><span className="font-medium text-gray-500">Location:</span> {formData.location || '-'}</p>
+               <p><span className="font-medium text-gray-500">Type:</span> {formData.propertyType} • {formData.propertyCategory}</p>
+               <p><span className="font-medium text-gray-500">Looking to:</span> {formData.type}</p>
+               <p><span className="font-medium text-gray-500">Area:</span> {formData.area || '-'} {formData.units}</p>
+               <p><span className="font-medium text-gray-500">Price:</span> ₹{formData.price}</p>
+             </div>
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+             <h4 className="font-semibold text-gray-900 mb-2">Contact Details</h4>
+             <div className="space-y-2 text-sm text-gray-700">
+               <p><span className="font-medium text-gray-500">Name:</span> {formData.OwnerName || '-'}</p>
+               <p><span className="font-medium text-gray-500">Phone:</span> {formData.phone || '-'}</p>
+               <p><span className="font-medium text-gray-500">Email:</span> {formData.email || '-'}</p>
+             </div>
+          </div>
+        </div>
+
+        {/* Media Preview */}
+        <div>
+           <h4 className="font-semibold text-gray-900 mb-2">Cover Image</h4>
+           <div className="aspect-video bg-gray-100 rounded-xl overflow-hidden border border-gray-200 relative">
+             {previewUrls[0] ? (
+               <img src={previewUrls[0]} alt="cover" className="w-full h-full object-cover" />
+             ) : (
+               <div className="flex items-center justify-center h-full text-gray-500 text-sm">No image selected</div>
+             )}
+           </div>
+           <p className="text-xs text-gray-500 mt-2 text-center">
+             Total {previewUrls.length} images selected
+           </p>
+        </div>
+      </div>
+      
+      <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-start gap-3">
+        <div className="bg-blue-100 p-2 rounded-full text-[#0066FF]">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        </div>
+        <div>
+          <h4 className="font-medium text-[#000929] text-sm">Ready to Publish?</h4>
+          <p className="text-xs text-gray-600 mt-1">
+            Review your details carefully. By clicking "Post Property", you agree to our Terms and Conditions.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -2286,6 +2345,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         {activeStep === 3 && renderStep3()}
         {activeStep === 4 && renderStep4()}
         {activeStep === 5 && renderStep5()}
+        {activeStep === 6 && renderStep6()}
       </div>
 
       <div className="mt-8 flex flex-col pt-6 border-t border-gray-100">
@@ -2306,7 +2366,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           </button>
         )}
         
-        {activeStep < 5 ? (
+        {activeStep < 6 ? (
           <button
             type="button"
             onClick={handleNext}
