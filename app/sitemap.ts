@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
-import { adminDb } from '@/lib/firebaseAdmin';
+import { collection, getDocs, limit, query } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,12 +36,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let propertyRoutes: MetadataRoute.Sitemap = [];
   try {
     // Fetch latest properties
-    const snapshot = await adminDb
-      .collection('property_All')
-      .doc('main')
-      .collection('properties')
-      .limit(1000)
-      .get();
+    const q = query(
+      collection(db, 'property_All', 'main', 'properties'),
+      limit(1000)
+    );
+    const snapshot = await getDocs(q);
     
     propertyRoutes = snapshot.docs.map((doc) => {
       const data = doc.data();
