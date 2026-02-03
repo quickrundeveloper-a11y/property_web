@@ -531,7 +531,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
   };
 
   const handleNext = () => {
-    if (activeStep < 6) {
+    if (activeStep < 5) {
       if (!validateStep(activeStep)) {
         setWarning("Please fill all mandatory fields marked with *");
         return;
@@ -542,7 +542,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
       setInternalStep(nextStep);
       if (onStepChange) onStepChange(nextStep);
       
-      if (onScoreChange) onScoreChange(Math.min(100, nextStep * 16.6));
+      if (onScoreChange) onScoreChange(Math.min(100, nextStep * 20));
       window.scrollTo(0, 0);
     }
   };
@@ -2366,7 +2366,7 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
           </button>
         )}
         
-        {activeStep < 6 ? (
+        {activeStep < 5 ? (
           <button
             type="button"
             onClick={handleNext}
