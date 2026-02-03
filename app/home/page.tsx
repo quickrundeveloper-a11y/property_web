@@ -896,7 +896,7 @@ function HomeContentInner() {
                 {/* Centered Filter Modal */}
                 {showFilters && (
                   <div 
-                    className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pb-24 lg:pb-4"
                     onWheel={(e) => {
                       if (filterContentRef.current && !filterContentRef.current.contains(e.target as Node)) {
                          filterContentRef.current.scrollTop += e.deltaY;
