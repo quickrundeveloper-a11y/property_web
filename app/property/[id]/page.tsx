@@ -254,10 +254,10 @@ export default function PropertyDetails() {
             },
             { 
               label: property.propertyCategory || "Property",
-              href: `/home?filter=${property.type === 'rent' ? 'Rent' : (property.type === 'pg' ? 'PG' : 'Buy')}&category=${property.propertyCategory}`
+              href: `/home?filter=${property.type === 'rent' ? 'Rent' : (property.type === 'pg' ? 'PG' : 'Buy')}&category=${property.propertyCategory || ''}`
             },
             { 
-              label: property.title, 
+              label: property.title || "Property Details", 
             }
           ]} 
         />
