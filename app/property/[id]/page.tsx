@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 
 import { Property } from "@/lib/types";
+import Breadcrumbs from "@/app/components/Breadcrumbs";
 
 export default function PropertyDetails() {
   const params = useParams();
@@ -244,7 +245,22 @@ export default function PropertyDetails() {
       {/* MAIN CONTAINER */}
       <div className="max-w-7xl mx-auto px-4 md:px-8">
         
-
+        {/* Breadcrumbs */}
+        <Breadcrumbs 
+          items={[
+            { 
+              label: property.type === 'rent' ? 'Rent' : (property.type === 'pg' ? 'PG/Co-living' : 'Buy'), 
+              href: `/home?filter=${property.type === 'rent' ? 'Rent' : (property.type === 'pg' ? 'PG' : 'Buy')}` 
+            },
+            { 
+              label: property.propertyCategory || "Property",
+              href: `/home?filter=${property.type === 'rent' ? 'Rent' : (property.type === 'pg' ? 'PG' : 'Buy')}&category=${property.propertyCategory}`
+            },
+            { 
+              label: property.title, 
+            }
+          ]} 
+        />
 
         {/* TOP SPLIT SECTION: Image Left, Data Right */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 mb-16">
@@ -503,11 +519,11 @@ export default function PropertyDetails() {
 
                    <div className="flex flex-col gap-3">
                       <button 
-                         onClick={handleMessageOwner}
-                         className="w-full bg-[#0085FF] text-white py-3 rounded-lg font-bold hover:bg-[#006bb3] transition-colors"
-                      >
-                         Contact Seller
-                      </button>
+                        onClick={handleMessageOwner}
+                        className="w-full bg-[#0085FF] text-white py-3 rounded-lg font-bold hover:bg-[#006bb3] transition-colors"
+                     >
+                        Chat
+                     </button>
                    </div>
                  </div>
                  
@@ -592,7 +608,7 @@ export default function PropertyDetails() {
            onClick={handleMessageOwner}
            className="flex-1 bg-[#0085FF] text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-blue-900/20"
          >
-           Contact
+           Chat
          </button>
          <button 
            onClick={handleCallOwner}
