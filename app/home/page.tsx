@@ -137,21 +137,21 @@ const PROPERTY_CATEGORIES = {
 
 const POSTED_BY = ["Owner", "Agent", "Builder"];
 
-function HomeContentInner() {
-  const [activeTab, setActiveTab] = useState("Buy");
+function HomeContentInner({ initialTab, showHero = true }: { initialTab?: string, showHero?: boolean }) {
+  const [activeTab, setActiveTab] = useState(initialTab || "Buy");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [email, setEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   // activeFilterCategory removed in favor of single view
   const [tempFilters, setTempFilters] = useState({
-    lookingTo: "sell" as "rent" | "sell" | "pg" | "all",
+    lookingTo: (initialTab === 'Rent' ? 'rent' : "sell") as "rent" | "sell" | "pg" | "all",
     propertyCategoryType: "residential" as "residential" | "commercial",
     location: "",
     propertyTypes: [] as string[],
     minBudget: "", // Keeping for backward compatibility or reset
     maxBudget: "", // Keeping for backward compatibility or reset
-    priceRange: [0, 50000000] as [number, number], // 0 to 5 Cr default
+    priceRange: (initialTab === 'Rent' ? [0, 500000] : [0, 50000000]) as [number, number], // 0 to 5 Cr default
     bedroom: [] as string[],
     bathroom: [] as string[],
     balcony: [] as string[],
@@ -159,13 +159,13 @@ function HomeContentInner() {
     postedBy: [] as string[]
   });
   const [appliedFilters, setAppliedFilters] = useState({
-    lookingTo: "sell" as "rent" | "sell" | "pg" | "all",
+    lookingTo: (initialTab === 'Rent' ? 'rent' : "sell") as "rent" | "sell" | "pg" | "all",
     propertyCategoryType: "residential" as "residential" | "commercial",
     location: "",
     propertyTypes: [] as string[],
     minBudget: "",
     maxBudget: "",
-    priceRange: [0, 50000000] as [number, number],
+    priceRange: (initialTab === 'Rent' ? [0, 500000] : [0, 50000000]) as [number, number],
     bedroom: [] as string[],
     bathroom: [] as string[],
     balcony: [] as string[],
@@ -823,6 +823,7 @@ function HomeContentInner() {
   return (
     <div className="min-h-screen bg-[#f4f8fc]">
       {/* HERO SECTION */}
+      {showHero && (
       <section className="bg-gradient-to-b from-[#0085FF] via-[#0085FF] via-50% to-[#0085FF]/0 text-white relative overflow-hidden min-h-[calc(100vh-64px)] flex flex-col lg:flex-row items-center">
         <div className="max-w-7xl mx-auto px-4 py-8 lg:py-20 w-full relative z-10 order-2 lg:order-1">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
@@ -1200,7 +1201,9 @@ function HomeContentInner() {
           </div>
         </div>
       </section>
+      )}
       {/* FEATURES SECTION */}
+      {showHero && (
       <section className="py-20 bg-[#F5F9FF]">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -1254,13 +1257,19 @@ function HomeContentInner() {
           </div>
         </div>
       </section>
+      )}
       {/* PROPERTY GRID */}
       <section ref={propertyGridRef} className="max-w-6xl mx-auto px-6 py-16 bg-[#F8F9FC]">
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold text-[#000929] mb-3">Based on your location</h2>
-          <p className="text-gray-500 text-lg">Some of our picked properties near your location.</p>
+          <h2 className="text-3xl font-bold text-[#000929] mb-3">
+            {showHero ? "Based on your location" : (activeTab === 'Sell' ? 'Sell Your Property' : `${activeTab} Properties`)}
+          </h2>
+          <p className="text-gray-500 text-lg">
+            {showHero ? "Some of our picked properties near your location." : "Find your perfect match from our curated list."}
+          </p>
         </div>
         
+        {showHero && (
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
           {/* Filter Tabs - Left */}
           <div className="bg-[#E0EAFF] p-1.5 rounded-xl flex flex-wrap justify-center items-center gap-1">
@@ -1285,6 +1294,7 @@ function HomeContentInner() {
 
 
         </div>
+        )}
 
         {activeTab === "Sell" ? (
           <div className="flex flex-col items-center justify-center py-20">
@@ -1546,14 +1556,14 @@ function HomeContentInner() {
   );
 }
 
-export default function HomeContent() {
+export default function HomeContent(props: { initialTab?: string, showHero?: boolean }) {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     }>
-      <HomeContentInner />
+      <HomeContentInner {...props} />
     </Suspense>
   );
 }

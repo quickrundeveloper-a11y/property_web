@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { FaFacebookF, FaInstagram, FaLinkedinIn, FaXTwitter } from 'react-icons/fa6';
 
 export default function Footer() {
@@ -9,8 +10,15 @@ export default function Footer() {
           {/* Logo */}
           <div className="col-span-1 sm:col-span-2 lg:col-span-1">
             <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 flex items-center justify-center">
-                <span className="text-blue-600 font-bold text-2xl">🏠</span>
+              <div className="relative w-14 h-14 flex items-center justify-center">
+                <Image 
+                  src="/logo.png?v=2" 
+                  alt="Prime Nivaas" 
+                  width={56} 
+                  height={56} 
+                  className="object-contain"
+                  unoptimized
+                />
               </div>
               <span className="text-gray-900 font-bold text-xl">Prime Nivaas</span>
             </Link>
@@ -43,8 +51,8 @@ export default function Footer() {
             <h3 className="text-gray-900 font-semibold text-lg mb-6">Company</h3>
             <ul className="space-y-4">
               <li>
-                <Link href="/company" className="text-gray-600 hover:text-gray-900 transition-colors">
-                  About
+                <Link href="/about" className="text-gray-600 hover:text-gray-900 transition-colors">
+                  About Us
                 </Link>
               </li>
               <li>

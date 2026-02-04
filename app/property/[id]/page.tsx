@@ -250,14 +250,14 @@ export default function PropertyDetails() {
           items={[
             { 
               label: property.type === 'rent' ? 'Rent' : (property.type === 'pg' ? 'PG/Co-living' : 'Buy'), 
-              href: `/home?filter=${property.type === 'rent' ? 'Rent' : (property.type === 'pg' ? 'PG' : 'Buy')}` 
+              href: `${property.type === 'rent' ? '/rent' : (property.type === 'pg' ? '/pg' : '/buy')}` 
             },
             { 
-              label: property.propertyCategory || "Property",
-              href: `/home?filter=${property.type === 'rent' ? 'Rent' : (property.type === 'pg' ? 'PG' : 'Buy')}&category=${property.propertyCategory || ''}`
+              label: `${property.propertyCategory || "Property"}`,
+              href: `${property.type === 'rent' ? '/rent' : (property.type === 'pg' ? '/pg' : '/buy')}?category=${property.propertyCategory || ''}`
             },
             { 
-              label: property.title || "Property Details", 
+              label: `${property.title || "Property Details"}`, 
             }
           ]} 
         />

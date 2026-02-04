@@ -7,6 +7,8 @@ import { useChat } from '@/app/context/ChatContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
   
+import Image from 'next/image';
+
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isManagePropertyOpen, setIsManagePropertyOpen] = useState(false);
@@ -95,8 +97,15 @@ export default function Header() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/home" className="flex items-center space-x-2">
-              <div className="w-8 h-8 flex items-center justify-center">
-                <span className="text-white font-bold text-2xl">🏠</span>
+              <div className="relative w-16 h-16 flex items-center justify-center">
+                <Image 
+                  src="/logo.png?v=2" 
+                  alt="Prime Nivaas" 
+                  width={56} 
+                  height={56} 
+                  className="object-contain"
+                  unoptimized
+                />
               </div>
               <span className="text-white font-bold text-xl">Prime Nivaas</span>
             </Link>
@@ -104,13 +113,13 @@ export default function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link href="/home?filter=Rent" className="text-white hover:text-blue-100 transition-colors">
+            <Link href="/rent" className="text-white hover:text-blue-100 transition-colors">
               Rent
             </Link>
-            <Link href="/home?filter=Buy" className="text-white hover:text-blue-100 transition-colors">
+            <Link href="/buy" className="text-white hover:text-blue-100 transition-colors">
               Buy
             </Link>
-            <Link href="/home?filter=Sell" className="text-white hover:text-blue-100 transition-colors">
+            <Link href="/post-property" className="text-white hover:text-blue-100 transition-colors">
               Post Property
             </Link>
             
@@ -248,19 +257,19 @@ export default function Header() {
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-blue-500 rounded-lg mt-2">
               <Link
-                href="/home?filter=Rent"
+                href="/rent"
                 className="text-white hover:text-blue-100 block px-3 py-2 rounded-md text-base font-medium"
               >
                 Rent
               </Link>
               <Link
-                href="/home?filter=Buy"
+                href="/buy"
                 className="text-white hover:text-blue-100 block px-3 py-2 rounded-md text-base font-medium"
               >
                 Buy
               </Link>
               <Link
-                href="/home?filter=Sell"
+                href="/post-property"
                 className="text-white hover:text-blue-100 block px-3 py-2 rounded-md text-base font-medium"
               >
                 Post Property

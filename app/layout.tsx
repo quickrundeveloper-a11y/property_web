@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   verification: {
     google: "qBe16FRPwxEAzJtxNw-JaEp-3Ixz_JaTH26PORx9DPM",
   },
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({
@@ -36,6 +41,7 @@ export default function RootLayout({
         "@id": "https://www.primenivaas.com/#organization",
         "name": "Prime Nivaas",
         "url": "https://www.primenivaas.com",
+        "logo": "https://www.primenivaas.com/logo.png",
         "description": "Looking for the best property? Prime Nivaas helps you buy, sell, or rent premium plots, homes, and villas effortlessly.",
         "telephone": "+91 98765 43210",
         "email": "support@primenivaas.com",
@@ -91,14 +97,14 @@ export default function RootLayout({
             "position": 1,
             "name": "Buy Properties",
             "description": "Explore premium properties for sale",
-            "url": "https://www.primenivaas.com/home?filter=Buy"
+            "url": "https://www.primenivaas.com/buy"
           },
           {
             "@type": "SiteNavigationElement",
             "position": 2,
             "name": "Rent Properties",
             "description": "Find the best rental homes and flats",
-            "url": "https://www.primenivaas.com/home?filter=Rent"
+            "url": "https://www.primenivaas.com/rent"
           },
           {
             "@type": "SiteNavigationElement",
