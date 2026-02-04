@@ -1,11 +1,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/home",
+        destination: "/",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
-      { source: "/sell", destination: "/home?filter=Sell" },
-      { source: "/post-property", destination: "/add-property" },
-      { source: "/pg", destination: "/home?filter=PG" },
+      { source: "/sell", destination: "/?filter=Sell" },
+      // { source: "/post-property", destination: "/add-property" }, // Removed to use actual page
+      { source: "/pg", destination: "/?filter=PG" },
     ];
   },
   images: {

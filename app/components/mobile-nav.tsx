@@ -10,7 +10,7 @@ export default function MobileNav() {
   const { openChat, isChatOpen } = useChat();
 
   const navItems = [
-    { name: "Home", href: "/home", icon: Home },
+    { name: "Home", href: "/", icon: Home },
     { name: "Favourite", href: "/favorites", icon: Heart },
     { 
       name: "Messages", 

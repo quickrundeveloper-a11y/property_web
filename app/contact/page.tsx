@@ -4,8 +4,31 @@ import { useState } from "react";
 import { Mail, Phone, MapPin, Send, MessageSquare } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import Script from "next/script";
 
 export default function ContactPage() {
+  const contactSchema = {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    "name": "Contact Prime Nivaas",
+    "description": "Get in touch with Prime Nivaas for all your real estate needs. Visit our office in Noida or call us.",
+    "url": "https://www.primenivaas.com/contact",
+    "mainEntity": {
+      "@type": "RealEstateAgent",
+      "name": "Prime Nivaas",
+      "image": "https://www.primenivaas.com/logo.png",
+      "telephone": "+91 98765 43210",
+      "email": "support@primenivaas.com",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "407, A-16 I-thum Height, Sector 62",
+        "addressLocality": "Noida",
+        "addressRegion": "Uttar Pradesh",
+        "addressCountry": "IN"
+      }
+    }
+  };
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -52,6 +75,11 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Script
+        id="contact-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(contactSchema) }}
+      />
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">

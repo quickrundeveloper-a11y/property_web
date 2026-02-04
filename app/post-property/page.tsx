@@ -6,13 +6,29 @@ import { useAuth } from "@/lib/auth-context";
 import AddPropertyForm from "../components/add-property-form";
 import { Stepper, PropertyScoreCard, steps } from "@/app/components/stepper";
 import { Check } from "lucide-react";
+import Script from "next/script";
 
-export default function AddPropertyPage() {
+export default function PostPropertyPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [maxStep, setMaxStep] = useState(1);
   const [propertyScore, setPropertyScore] = useState(17);
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Post Property for Free",
+    "description": "List your property for rent or sale on Prime Nivaas for free.",
+    "url": "https://www.primenivaas.com/post-property",
+    "potentialAction": {
+      "@type": "SellAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://www.primenivaas.com/post-property"
+      }
+    }
+  };
 
   const handleStepChange = (step: number) => {
     setCurrentStep(step);
@@ -42,6 +58,11 @@ export default function AddPropertyPage() {
 
   return (
     <div className="min-h-screen bg-[#F0F5FA] py-10">
+      <Script
+        id="post-property-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex flex-col md:flex-row gap-8">
           {/* Sidebar */}
@@ -63,7 +84,7 @@ export default function AddPropertyPage() {
           <div className="w-full md:w-3/4">
              <div className="flex items-center justify-between mb-6 gap-4">
               <div className="flex flex-col md:hidden flex-1">
-                <h1 className="text-xl font-bold text-[#000929]">Add Property</h1>
+                <h1 className="text-xl font-bold text-[#000929]">Post Property</h1>
                 <div className="flex items-center gap-2 mt-2">
                   <div className="flex-1 bg-gray-200 rounded-full h-1.5">
                     <div 
@@ -74,7 +95,7 @@ export default function AddPropertyPage() {
                   <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Step {currentStep}/6</span>
                 </div>
               </div>
-              <h1 className="text-2xl font-bold text-[#000929] hidden md:block">Add Property</h1>
+              <h1 className="text-2xl font-bold text-[#000929] hidden md:block">Post Property</h1>
               <button
                 onClick={() => router.push("/")}
                 className="bg-white hover:bg-gray-50 text-[#005DB2] border border-[#005DB2] px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-medium transition-colors shadow-sm text-sm whitespace-nowrap"

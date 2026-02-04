@@ -9,9 +9,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Static routes
   const routes = [
-    '',
-    '/home',
-    '/about',
+  '',
+  // '/home', // Removed to avoid duplicate content with root
+  '/about',
     '/buy',
     '/rent',
     '/pg',

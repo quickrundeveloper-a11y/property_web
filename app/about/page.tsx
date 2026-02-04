@@ -1,9 +1,33 @@
-"use client";
-
 import { Target, Eye, Shield, Users, Home, TrendingUp, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import Script from "next/script";
 import Breadcrumbs from "../components/Breadcrumbs";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "About Prime Nivaas | Trusted Real Estate Platform in India",
+  description: "Learn about Prime Nivaas, our mission to revolutionize real estate, and our vision to be India's most trusted property platform for buying, selling, and renting.",
+  keywords: "about prime nivaas, real estate company, property platform india, real estate mission, vision values",
+  alternates: {
+    canonical: "/about",
+  },
+  openGraph: {
+    title: "About Prime Nivaas | Trusted Real Estate Platform",
+    description: "We are building a transparent, efficient, and user-friendly platform to make your property journey seamless.",
+    url: "https://www.primenivaas.com/about",
+    siteName: "Prime Nivaas",
+    images: [
+      {
+        url: "/logo.png",
+        width: 800,
+        height: 600,
+        alt: "Prime Nivaas Logo",
+      },
+    ],
+    locale: "en_IN",
+    type: "website",
+  },
+};
 
 export default function AboutPage() {
   const aboutSchema = {

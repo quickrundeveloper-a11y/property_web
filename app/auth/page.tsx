@@ -205,7 +205,7 @@ function AuthPageContent() {
       }
 
       // Success callback and redirect
-      router.push("/home");
+      router.push("/");
 
     } catch (error: unknown) {
       const firebaseError = error as { code?: string };
@@ -273,7 +273,7 @@ function AuthPageContent() {
         await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
       }
 
-      router.push("/home");
+      router.push("/");
 
     } catch (error: unknown) {
       let errorMessage = 'An error occurred. Please try again.';
@@ -515,7 +515,7 @@ function AuthPageContent() {
                     setCaptureNameOpen(false);
                     setNameInput("");
                     setNewUserUid(null);
-                    router.push("/home");
+                    router.push("/");
                   }}
                   disabled={!nameInput.trim()}
                   className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
