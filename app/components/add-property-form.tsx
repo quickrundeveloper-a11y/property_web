@@ -1100,9 +1100,9 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
                   <button
                     key={num}
                     type="button"
-                    onClick={() => setFormData({...formData, bedrooms: num === "5+" ? "5" : num})}
+                    onClick={() => setFormData({...formData, bedrooms: num})}
                     className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      formData.bedrooms === (num === "5+" ? "5" : num)
+                      formData.bedrooms === num
                         ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
                         : `bg-white ${errors.bedrooms ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
                     }`}
@@ -1142,17 +1142,17 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
              <div className="flex gap-2">
                {["1", "2", "3", "4+"].map(num => (
                  <button
-                   key={num}
-                   type="button"
-                   onClick={() => setFormData({...formData, bathrooms: num === "4+" ? "4" : num})}
-                   className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                     formData.bathrooms === (num === "4+" ? "4" : num)
-                       ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
-                       : `bg-white ${errors.bathrooms ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
-                   }`}
-                 >
-                   {num}
-                 </button>
+                  key={num}
+                  type="button"
+                  onClick={() => setFormData({...formData, bathrooms: num})}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    formData.bathrooms === num
+                      ? "bg-[#E6F2FF] border-[#0085FF] text-[#0085FF]"
+                      : `bg-white ${errors.bathrooms ? "border-red-500 text-red-500" : "border-gray-200 text-gray-500"} hover:border-gray-300`
+                  }`}
+                >
+                  {num}
+                </button>
                ))}
              </div>
          </div>
@@ -2270,8 +2270,8 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
         taxExcluded: formData.taxExcluded,
         priceNegotiable: formData.priceNegotiable,
         uniqueDescription: formData.uniqueDescription,
-        bedrooms: Number(formData.bedrooms),
-        bathrooms: Number(formData.bathrooms),
+        bedrooms: formData.bedrooms,
+        bathrooms: formData.bathrooms,
         area: formData.area,
         units: formData.units,
         features: formData.features,
