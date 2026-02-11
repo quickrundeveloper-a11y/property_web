@@ -42,7 +42,8 @@ export default function ContactPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const nextValue = name === 'phone' ? value.replace(/[^\d]/g, '').slice(0, 10) : value;
+    setFormData((prev) => ({ ...prev, [name]: nextValue }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -225,8 +226,11 @@ export default function ContactPage() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
+                      inputMode="numeric"
+                      pattern="\\d{10}"
+                      maxLength={10}
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
-                      placeholder="+91 98765 43210"
+                      placeholder="9876543210"
                     />
                   </div>
 

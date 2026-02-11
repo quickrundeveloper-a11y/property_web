@@ -2030,7 +2030,10 @@ export default function AddPropertyForm({ defaultType = "sell", onSuccess, initi
               required
               className={`w-full p-3 rounded-lg bg-white border focus:outline-none focus:ring-2 focus:ring-[#0085FF] focus:border-transparent placeholder-gray-400 text-gray-900 ${errors.phone ? "border-red-500" : "border-gray-300"}`}
               value={formData.phone}
-              onChange={e => setFormData({...formData, phone: e.target.value})}
+              onChange={e => setFormData({...formData, phone: e.target.value.replace(/[^\d]/g, '').slice(0, 10)})}
+              inputMode="numeric"
+              pattern="\\d{10}"
+              maxLength={10}
               placeholder="Your contact number"
             />
           </div>

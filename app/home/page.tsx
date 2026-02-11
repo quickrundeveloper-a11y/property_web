@@ -159,7 +159,7 @@ function HomeContentInner({ initialTab, showHero = true }: { initialTab?: string
     postedBy: [] as string[]
   });
   const [appliedFilters, setAppliedFilters] = useState({
-    lookingTo: (initialTab === 'Rent' ? 'rent' : "sell") as "rent" | "sell" | "pg" | "all",
+    lookingTo: (initialTab === 'Rent' ? 'rent' : (initialTab === 'Buy' ? 'sell' : 'all')) as "rent" | "sell" | "pg" | "all",
     propertyCategoryType: "residential" as "residential" | "commercial",
     location: "",
     propertyTypes: [] as string[],
@@ -465,21 +465,45 @@ function HomeContentInner({ initialTab, showHero = true }: { initialTab?: string
       );
       const snapshot = await getDocs(q);
       const data = snapshot.docs.map((doc) => {
-        const docData = doc.data();
+        const docData = doc.data() as Record<string, unknown>;
+        const parsePriceValue = (v: unknown) => {
+          const s = String(v ?? '');
+          const n = Number(s.replace(/[^\d.]/g, ''));
+          return isNaN(n) ? 0 : n;
+        };
+        const imgs =
+          Array.isArray(docData.images) ? (docData.images as string[]) :
+          Array.isArray(docData.imageUrls) ? (docData.imageUrls as string[]) :
+          Array.isArray(docData.photos) ? (docData.photos as string[]) :
+          Array.isArray(docData.gallery) ? (docData.gallery as string[]) :
+          [];
+        const cover =
+          (docData.coverImage as string) ||
+          (docData.coverPhoto as string) ||
+          (docData.image as string) ||
+          imgs[0];
+        const finalImages = imgs.length > 0 ? imgs : (cover ? [cover] : []);
         return {
           ...docData,
           id: doc.id,
-          // Ensure required fields exist
-          title: docData.title || docData.name || 'Property',
-          location: docData.location || docData.address || 'Location',
-          price: docData.price || docData.rent || docData.cost || 25000,
-          bedrooms: docData.bedrooms || docData.beds || 0,
-          bathrooms: docData.bathrooms || docData.baths || 0,
-          area: docData.area || docData.sqft || '5x7',
-          priceUnit: docData.priceUnit || docData.price_unit || 'per_month',
-          phone: docData.phone || docData.contact || '+91-9876543210',
-          images: Array.isArray(docData.images) ? docData.images : (docData.image ? [docData.image] : []),
-          image: docData.images?.[0] || docData.image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
+          title: (docData.title as string) || (docData.name as string) || 'Property',
+          location: (docData.location as string) || (docData.address as string) || (docData.fullAddress as string) || (docData.city as string) || (docData.locality as string) || 'Location',
+          price: parsePriceValue(
+            (docData.price) ??
+            (docData.rent) ??
+            (docData.cost) ??
+            (docData.expectedPrice) ??
+            (docData.listPrice) ??
+            25000
+          ),
+          bedrooms: (docData.bedrooms as number) || (docData.beds as number) || 0,
+          bathrooms: (docData.bathrooms as number) || (docData.baths as number) || 0,
+          area: (docData.area as string) || (docData.sqft as string) || '5x7',
+          priceUnit: (docData.priceUnit as string) || (docData.price_unit as string) || 'per_month',
+          phone: (docData.phone as string) || (docData.contact as string) || '+91-9876543210',
+          images: finalImages,
+          image: finalImages[0] || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+          type: (docData.type as string) || (docData.listingType as string) || (docData.propertyType as string) || (docData.detailedType as string) || ''
         };
       }).filter(property => property && property.id);
 
@@ -643,21 +667,45 @@ function HomeContentInner({ initialTab, showHero = true }: { initialTab?: string
     const q = query(collection(db, "property_All", "main", "properties"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map((doc) => {
-        const docData = doc.data();
+        const docData = doc.data() as Record<string, unknown>;
+        const parsePriceValue = (v: unknown) => {
+          const s = String(v ?? '');
+          const n = Number(s.replace(/[^\d.]/g, ''));
+          return isNaN(n) ? 0 : n;
+        };
+        const imgs =
+          Array.isArray(docData.images) ? (docData.images as string[]) :
+          Array.isArray(docData.imageUrls) ? (docData.imageUrls as string[]) :
+          Array.isArray(docData.photos) ? (docData.photos as string[]) :
+          Array.isArray(docData.gallery) ? (docData.gallery as string[]) :
+          [];
+        const cover =
+          (docData.coverImage as string) ||
+          (docData.coverPhoto as string) ||
+          (docData.image as string) ||
+          imgs[0];
+        const finalImages = imgs.length > 0 ? imgs : (cover ? [cover] : []);
         return {
           ...docData,
           id: doc.id,
-          // Ensure required fields exist - matching fetchProperties logic
-          title: docData.title || docData.name || 'Property',
-          location: docData.location || docData.address || 'Location',
-          price: docData.price || docData.rent || docData.cost || 25000,
-          bedrooms: docData.bedrooms || docData.beds || 0,
-          bathrooms: docData.bathrooms || docData.baths || 0,
-          area: docData.area || docData.sqft || '5x7',
-          priceUnit: docData.priceUnit || docData.price_unit || 'per_month',
-          phone: docData.phone || docData.contact || '+91-9876543210',
-          images: Array.isArray(docData.images) ? docData.images : (docData.image ? [docData.image] : []),
-          image: docData.images?.[0] || docData.image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
+          title: (docData.title as string) || (docData.name as string) || 'Property',
+          location: (docData.location as string) || (docData.address as string) || (docData.fullAddress as string) || (docData.city as string) || (docData.locality as string) || 'Location',
+          price: parsePriceValue(
+            (docData.price) ??
+            (docData.rent) ??
+            (docData.cost) ??
+            (docData.expectedPrice) ??
+            (docData.listPrice) ??
+            25000
+          ),
+          bedrooms: (docData.bedrooms as number) || (docData.beds as number) || 0,
+          bathrooms: (docData.bathrooms as number) || (docData.baths as number) || 0,
+          area: (docData.area as string) || (docData.sqft as string) || '5x7',
+          priceUnit: (docData.priceUnit as string) || (docData.price_unit as string) || 'per_month',
+          phone: (docData.phone as string) || (docData.contact as string) || '+91-9876543210',
+          images: finalImages,
+          image: finalImages[0] || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+          type: (docData.type as string) || (docData.listingType as string) || (docData.propertyType as string) || (docData.detailedType as string) || ''
         };
       }).filter(property => property && property.id);
       setProperties(data);
@@ -697,7 +745,8 @@ function HomeContentInner({ initialTab, showHero = true }: { initialTab?: string
     }
 
     // Filter by Property Category Type (Residential/Commercial)
-    if (appliedFilters.propertyCategoryType) {
+    // When activeTab is "All", bypass category filtering to truly show everything
+    if (appliedFilters.propertyCategoryType && activeTab !== 'All') {
        const pType = String(property.propertyType || property.type || property.category || property.propertyCategory || '').toLowerCase();
        const isCommercial = pType.includes('commercial') || pType.includes('office') || pType.includes('retail') || pType.includes('industry') || pType.includes('storage') || pType.includes('hospitality') || pType.includes('shop') || pType.includes('showroom');
        const isResidentialSpecific = pType.includes('flat') || pType.includes('apartment') || pType.includes('house') || pType.includes('villa') || pType.includes('penthouse') || pType.includes('studio') || pType.includes('residential');
@@ -755,9 +804,11 @@ function HomeContentInner({ initialTab, showHero = true }: { initialTab?: string
       if (!matchesLocation) return false;
     }
 
-    // Price Range Filter
-    const price = getPropertyPriceValue(property);
-    if (price < appliedFilters.priceRange[0] || price > appliedFilters.priceRange[1]) return false;
+    // Price Range Filter (skip when All is active to include high-value sales)
+    if (activeTab !== 'All') {
+      const price = getPropertyPriceValue(property);
+      if (price < appliedFilters.priceRange[0] || price > appliedFilters.priceRange[1]) return false;
+    }
 
     if (appliedFilters.bedroom.length > 0) {
       const beds = property.bedrooms || property.beds || 0;
@@ -1270,6 +1321,7 @@ function HomeContentInner({ initialTab, showHero = true }: { initialTab?: string
           {/* Filter Tabs - Left */}
           <div className="bg-[#E0EAFF] p-1.5 rounded-xl flex flex-wrap justify-center items-center gap-1">
             {[
+              { id: "All", label: "All" },
               { id: "Rent", label: "Rent" },
               { id: "Buy", label: "Buy" },
               { id: "Sell", label: "Sell Property" }

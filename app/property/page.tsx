@@ -19,11 +19,12 @@ function PropertySearchContent() {
   const [filters, setFilters] = useState({
     location: searchParams.get('location') || '',
     date: searchParams.get('date') || '',
-    type: searchParams.get('type') || 'rent',
+    type: searchParams.get('type') || 'all',
   });
   const [isTypeOpen, setIsTypeOpen] = useState(false);
 
   const typeOptions = [
+    { value: "all", label: "All Properties" },
     { value: "rent", label: "For Rent" },
     { value: "buy", label: "For Sale" },
     { value: "sell", label: "Sell Property" },
@@ -32,6 +33,7 @@ function PropertySearchContent() {
   const normalizeType = (value: unknown) => {
     const v = String(value || "").toLowerCase();
     if (!v) return "";
+    if (v.includes("all")) return "all";
     if (v.includes("rent")) return "rent";
     if (v.includes("sell")) return "sell";
     if (v.includes("sale") || v.includes("buy")) return "buy";
@@ -46,7 +48,7 @@ function PropertySearchContent() {
     setFilters({
       location: searchParams.get('location') || '',
       date: searchParams.get('date') || '',
-      type: searchParams.get('type') || 'rent',
+      type: searchParams.get('type') || 'all',
     });
     setIsTypeOpen(false);
   }, [searchParams]);
@@ -67,19 +69,36 @@ function PropertySearchContent() {
 
         const snapshot = await getDocs(q);
         const data = snapshot.docs.map((doc) => {
-          const d = doc.data();
+          const d = doc.data() as Record<string, unknown>;
+          const parsePriceValue = (v: unknown) => {
+            const s = String(v ?? '');
+            const n = Number(s.replace(/[^\d.]/g, ''));
+            return isNaN(n) ? 0 : n;
+          };
+          const imgs =
+            Array.isArray(d.images) ? (d.images as string[]) :
+            Array.isArray(d.imageUrls) ? (d.imageUrls as string[]) :
+            Array.isArray(d.photos) ? (d.photos as string[]) :
+            Array.isArray(d.gallery) ? (d.gallery as string[]) :
+            [];
+          const cover =
+            (d.coverImage as string) ||
+            (d.coverPhoto as string) ||
+            (d.image as string) ||
+            imgs[0];
+          const finalImages = imgs.length > 0 ? imgs : (cover ? [cover] : []);
           return {
             id: doc.id,
-            title: d.title || d.name || "Property",
-            location: d.location || d.address || "",
-            price: Number(d.price || d.rent || d.cost || 0),
-            images: Array.isArray(d.images) ? d.images : (d.image ? [d.image] : []),
-            bedrooms: Number(d.bedrooms || d.beds || 0),
-            bathrooms: Number(d.bathrooms || d.baths || 0),
-            area: String(d.area || d.sqft || ""),
-            type: d.type || d.listingType || d.propertyType || "",
-            priceUnit: d.priceUnit || d.price_unit || "",
-            propertyCategory: d.propertyCategory || d.category || "",
+            title: (d.title as string) || (d.name as string) || "Property",
+            location: (d.location as string) || (d.address as string) || (d.fullAddress as string) || (d.city as string) || (d.locality as string) || "",
+            price: parsePriceValue((d.price) ?? (d.rent) ?? (d.cost) ?? (d.expectedPrice) ?? (d.listPrice) ?? 0),
+            images: finalImages,
+            bedrooms: Number((d.bedrooms as number) || (d.beds as number) || 0),
+            bathrooms: Number((d.bathrooms as number) || (d.baths as number) || 0),
+            area: String((d.area as string) || (d.sqft as string) || ""),
+            type: (d.type as string) || (d.listingType as string) || (d.propertyType as string) || (d.detailedType as string) || "",
+            priceUnit: (d.priceUnit as string) || (d.price_unit as string) || "",
+            propertyCategory: (d.propertyCategory as string) || (d.category as string) || (d.detailedType as string) || "",
           } as Property;
         });
 
@@ -185,9 +204,45 @@ function PropertySearchContent() {
     return '';
   };
 
+  const getAreaUnitLabel = (item: Property) => {
+    const u = String(
+      (item as unknown as { units?: string; areaUnit?: string; area_unit?: string }).units ||
+      (item as unknown as { units?: string; areaUnit?: string; area_unit?: string }).areaUnit ||
+      (item as unknown as { units?: string; areaUnit?: string; area_unit?: string }).area_unit ||
+      ''
+    ).toLowerCase();
+    if (u) {
+      const map: Record<string, string> = {
+        sqft: 'sq ft',
+        sqm: 'sq m',
+        sqyards: 'sq yards',
+        acres: 'acres',
+        marla: 'marla',
+        cents: 'cents',
+        bigha: 'bigha',
+        kottah: 'kottah',
+        kanal: 'kanal',
+        grounds: 'grounds',
+        ares: 'ares',
+        biswa: 'biswa',
+        guntha: 'guntha',
+        aankadam: 'aankadam',
+        hectares: 'hectares',
+        rood: 'rood',
+        chataks: 'chataks',
+        perch: 'perch'
+      };
+      return map[u] || u;
+    }
+    return 'sq ft';
+  };
+
   const visibleProperties = properties.filter((p) => {
-    const matchesType = normalizeType(p.type) === normalizeType(filters.type);
-    if (!matchesType) return false;
+    const filterType = normalizeType(filters.type);
+    if (filterType !== "all") {
+      const matchesType = normalizeType(p.type) === filterType;
+      if (!matchesType) return false;
+    }
     if (!filters.location) return true;
     return String(p.location || "").toLowerCase().includes(filters.location.toLowerCase());
   });
@@ -381,7 +436,7 @@ function PropertySearchContent() {
                         <svg className="w-4 h-4 mr-1 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M3 4a1 1 0 000 2v9a2 2 0 002 2h6a2 2 0 002-2V6a1 1 0 100-2H3zm6 2a1 1 0 00-1 1v6a1 1 0 102 0V7a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
-                        {property.area || "2000"} {String((property as any).units || '').toLowerCase() || 'sq ft'}
+                        {property.area || "2000"} {getAreaUnitLabel(property)}
                       </div>
                     </div>
                   </div>

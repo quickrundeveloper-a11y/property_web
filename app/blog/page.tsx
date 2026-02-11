@@ -17,13 +17,13 @@ export default function BlogPage() {
     },
     {
       id: 2,
-      title: "The Future of Real Estate: Smart Homes & Sustainability",
-      excerpt: "How technology and eco-friendly features are shaping the properties of tomorrow and what it means for investors.",
-      author: "Michael Chen",
-      date: "Jan 12, 2026",
-      category: "Trends",
-      image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      slug: "future-real-estate-smart-homes"
+      title: "Premium Student Hoslet Near UPES University – Ready to Lease",
+      excerpt: "Demand for quality student hoslet is rising in India. Primenivaas offers a newly built, ready-to-lease property near UPES University, Dehradun—spanning one acre with 54 flats and capacity for 260+ students, designed for safe, modern living close to campus.",
+      author: "Primenivaas Editorial",
+      date: "Feb 11, 2026",
+      category: "",
+      image: "/hostel.jpeg",
+      slug: "student-housing-upes-dehradun"
     },
     {
       id: 3,
@@ -125,11 +125,13 @@ export default function BlogPage() {
                   className="object-cover transition-transform duration-500 hover:scale-105"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 />
-                <div className="absolute top-4 left-4">
-                  <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-blue-800 text-xs font-bold rounded-full shadow-sm">
-                    {post.category}
-                  </span>
-                </div>
+                {post.category && (
+                  <div className="absolute top-4 left-4">
+                    <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-blue-800 text-xs font-bold rounded-full shadow-sm">
+                      {post.category}
+                    </span>
+                  </div>
+                )}
               </div>
               
               <div className="p-6 flex-1 flex flex-col">
@@ -145,7 +147,7 @@ export default function BlogPage() {
                 </div>
                 
                 <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 hover:text-blue-600 transition-colors">
-                  <Link href={`#`}>
+                  <Link href={post.slug === 'student-housing-upes-dehradun' ? `/blog/${post.slug}` : `#`}>
                     {post.title}
                   </Link>
                 </h3>
@@ -155,7 +157,7 @@ export default function BlogPage() {
                 </p>
                 
                 <div className="pt-4 border-t border-gray-100 mt-auto">
-                  <Link href={`#`} className="inline-flex items-center text-blue-600 font-medium hover:text-blue-800 transition-colors">
+                  <Link href={post.slug === 'student-housing-upes-dehradun' ? `/blog/${post.slug}` : `#`} className="inline-flex items-center text-blue-600 font-medium hover:text-blue-800 transition-colors">
                     Read Article <ArrowRight className="w-4 h-4 ml-2" />
                   </Link>
                 </div>

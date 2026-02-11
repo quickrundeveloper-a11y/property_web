@@ -221,7 +221,10 @@ export default function ProfilePage() {
                 type="tel"
                 id="mobile"
                 value={formData.mobile}
-                onChange={(e) => setFormData({...formData, mobile: e.target.value})}
+                onChange={(e) => setFormData({...formData, mobile: e.target.value.replace(/[^\d]/g, '').slice(0, 10)})}
+                inputMode="numeric"
+                pattern="\\d{10}"
+                maxLength={10}
                 className="block w-full border-gray-300 rounded-r-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border p-2.5"
                 placeholder="Mobile number"
               />
