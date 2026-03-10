@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow read and write access to all files
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+    
+    // Specific rules for property images
+    match /property-images/{allPaths=**} {
+      allow read, write: if true;
+    }
+    
+    // Specific rules for user uploads
+    match /uploads/{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}

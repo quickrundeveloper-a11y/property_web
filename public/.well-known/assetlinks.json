@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.property.propertyapp",
+      "sha256_cert_fingerprints": [
+        "2E:A9:41:6A:34:68:2E:EE:AE:08:C3:19:7E:78:78:AE:BF:9F:96:47:58:1E:77:D6:CC:B0:F1:66:96:00:95:77"
+      ]
+    }
+  }
+]
