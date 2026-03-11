@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   keywords:
     "buy office space in noida",
   verification: {
-    google: "qBe16FRPwxEAzJtxNw-JaEp-3Ixz_JaTH26PORx9DPM",
+    google: "qZKFbIai_gFt1ckTt_IorjfZNmw5eStry9J56ogPlvM",
   },
   icons: {
     icon: '/logo.png',
