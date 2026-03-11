@@ -130,7 +130,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${lexend.variable} antialiased font-sans`} suppressHydrationWarning>
         <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-4LC1DMYRWB"
+          src="https://www.googletagmanager.com/gtag/js?id=G-GPJVV1JYZE"
           strategy="afterInteractive"
         />
         <Script id="ga-init" strategy="afterInteractive">
@@ -138,7 +138,7 @@ export default function RootLayout({
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', 'G-4LC1DMYRWB');
+            gtag('config', 'G-GPJVV1JYZE');
           `}
         </Script>
         <Script id="ga-ads-config" strategy="afterInteractive">
